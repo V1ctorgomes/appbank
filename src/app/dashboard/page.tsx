@@ -1,0 +1,72 @@
+import { AppLayout } from "@/components/layout/app-layout";
+import { StatCard, Card } from "@/components/ui/card";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { getDashboardData, updateOverdueInstallments } from "@/actions/dashboard";
+
+export default async function DashboardPage() {
+  await updateOverdueInstallments();
+  const data = await getDashboardData();
+
+  return (
+    <AppLayout>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-slate-500">Visão geral da sua situação financeira</p>
+      </div>
+
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <StatCard
+          title="Saldo Atual"
+          value={formatCurrency(data.balance)}
+          variant={data.balance >= 0 ? "income" : "expense"}
+        />
+        <StatCard
+          title="Entradas do Mês"
+          value={formatCurrency(data.monthIncome)}
+          variant="income"
+        />
+        <StatCard
+          title="Saídas do Mês"
+          value={formatCurrency(data.monthExpense)}
+          variant="expense"
+        />
+        <StatCard
+          title="Total a Receber"
+          value={formatCurrency(data.totalReceivable)}
+        />
+        <StatCard
+          title="Parcelas Atrasadas"
+          value={String(data.overdueCount)}
+          variant={data.overdueCount > 0 ? "warning" : "default"}
+        />
+      </div>
+
+      <Card title="Próximos Recebimentos">
+        {data.upcomingPayments.length === 0 ? (
+          <p className="text-sm text-slate-500">Nenhum recebimento previsto nos próximos 30 dias.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-slate-500">
+                  <th className="pb-3 font-medium">Cliente</th>
+                  <th className="pb-3 font-medium">Valor</th>
+                  <th className="pb-3 font-medium">Vencimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.upcomingPayments.map((payment) => (
+                  <tr key={payment.id} className="border-b border-slate-100">
+                    <td className="py-3 font-medium text-slate-800">{payment.clientName}</td>
+                    <td className="py-3 text-green-700">{formatCurrency(payment.value)}</td>
+                    <td className="py-3 text-slate-600">{formatDate(payment.dueDate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </AppLayout>
+  );
+}
