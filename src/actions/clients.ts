@@ -23,12 +23,17 @@ export async function getClients(search?: string) {
         : {}),
     },
     orderBy: { name: "asc" },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      cpf: true,
       sales: {
         where: { deletedAt: null },
-        include: {
+        select: {
           installments: {
             where: { deletedAt: null, status: { in: ["PENDING", "OVERDUE"] } },
+            select: { value: true },
           },
         },
       },

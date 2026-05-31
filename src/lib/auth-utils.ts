@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { auth } from "@/auth";
 
 declare module "next-auth" {
@@ -11,10 +12,10 @@ declare module "next-auth" {
   }
 }
 
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async () => {
   const session = await auth();
   return session?.user ?? null;
-}
+});
 
 export async function requireAuth() {
   const user = await getCurrentUser();

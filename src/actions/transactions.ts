@@ -13,11 +13,9 @@ export type TransactionFilters = {
   search?: string;
 };
 
-export async function getTransactions(filters: TransactionFilters = {}) {
-  const user = await requireAuth();
-
-  const where = {
-    userId: user.id,
+function buildTransactionWhere(userId: string, filters: TransactionFilters = {}) {
+  return {
+    userId,
     deletedAt: null,
     ...(filters.type ? { type: filters.type } : {}),
     ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
@@ -42,10 +40,24 @@ export async function getTransactions(filters: TransactionFilters = {}) {
         }
       : {}),
   };
+}
+
+export async function getTransactions(filters: TransactionFilters = {}) {
+  const user = await requireAuth();
 
   return prisma.transaction.findMany({
-    where,
-    include: { category: true },
+    where: buildTransactionWhere(user.id, filters),
+    select: {
+      id: true,
+      type: true,
+      origin: true,
+      description: true,
+      value: true,
+      date: true,
+      notes: true,
+      categoryId: true,
+      category: { select: { name: true } },
+    },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
 }
@@ -160,15 +172,23 @@ export async function deleteTransaction(id: string) {
 }
 
 export async function getTransactionSummary(filters: TransactionFilters = {}) {
-  const transactions = await getTransactions(filters);
+  const user = await requireAuth();
+  const where = buildTransactionWhere(user.id, filters);
 
-  const income = transactions
-    .filter((t) => t.type === "INCOME")
-    .reduce((sum, t) => sum + Number(t.value), 0);
+  const [incomeAgg, expenseAgg, count] = await Promise.all([
+    prisma.transaction.aggregate({
+      where: { ...where, type: "INCOME" },
+      _sum: { value: true },
+    }),
+    prisma.transaction.aggregate({
+      where: { ...where, type: "EXPENSE" },
+      _sum: { value: true },
+    }),
+    prisma.transaction.count({ where }),
+  ]);
 
-  const expense = transactions
-    .filter((t) => t.type === "EXPENSE")
-    .reduce((sum, t) => sum + Number(t.value), 0);
+  const income = Number(incomeAgg._sum.value ?? 0);
+  const expense = Number(expenseAgg._sum.value ?? 0);
 
-  return { income, expense, balance: income - expense, count: transactions.length };
+  return { income, expense, balance: income - expense, count };
 }

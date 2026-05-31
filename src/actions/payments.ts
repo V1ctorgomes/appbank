@@ -1,12 +1,27 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
 import { paymentSchema, type PaymentInput } from "@/lib/schemas";
 
+async function syncOverdueInstallments(userId: string) {
+  const today = startOfDay(new Date());
+  await prisma.installment.updateMany({
+    where: {
+      status: "PENDING",
+      dueDate: { lt: today },
+      deletedAt: null,
+      sale: { userId },
+    },
+    data: { status: "OVERDUE" },
+  });
+}
+
 export async function getPendingInstallments() {
   const user = await requireAuth();
+  await syncOverdueInstallments(user.id);
 
   return prisma.installment.findMany({
     where: {
@@ -14,9 +29,17 @@ export async function getPendingInstallments() {
       status: { in: ["PENDING", "OVERDUE"] },
       sale: { userId: user.id, deletedAt: null },
     },
-    include: {
+    select: {
+      id: true,
+      number: true,
+      value: true,
+      dueDate: true,
+      status: true,
+      saleId: true,
       sale: {
-        include: { client: true },
+        select: {
+          client: { select: { id: true, name: true } },
+        },
       },
     },
     orderBy: [{ dueDate: "asc" }, { number: "asc" }],

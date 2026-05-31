@@ -16,11 +16,15 @@ export async function getSales() {
 
   return prisma.sale.findMany({
     where: { userId: user.id, deletedAt: null },
-    include: {
-      client: true,
-      items: true,
+    select: {
+      id: true,
+      type: true,
+      saleDate: true,
+      totalValue: true,
+      client: { select: { id: true, name: true } },
       installments: {
         where: { deletedAt: null },
+        select: { id: true, status: true, value: true },
         orderBy: { number: "asc" },
       },
     },

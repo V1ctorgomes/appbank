@@ -1,10 +1,9 @@
 import { AppLayout } from "@/components/layout/app-layout";
 import { StatCard, Card } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { getDashboardData, updateOverdueInstallments } from "@/actions/dashboard";
+import { getDashboardData } from "@/actions/dashboard";
 
 export default async function DashboardPage() {
-  await updateOverdueInstallments();
   const data = await getDashboardData();
 
   return (

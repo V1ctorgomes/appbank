@@ -2,79 +2,106 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
-import { startOfMonth, endOfMonth, addDays } from "date-fns";
+import { startOfMonth, endOfMonth, addDays, startOfDay } from "date-fns";
+
+function sumDecimal(value: { _sum: { value: unknown } }) {
+  return Number(value._sum.value ?? 0);
+}
 
 export async function getDashboardData() {
   const user = await requireAuth();
+  const userId = user.id;
   const now = new Date();
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
+  const today = startOfDay(now);
 
-  const [transactions, pendingInstallments, overdueInstallments, upcomingInstallments] =
-    await Promise.all([
-      prisma.transaction.findMany({
-        where: { userId: user.id, deletedAt: null },
-        select: { type: true, value: true, date: true },
-      }),
-      prisma.installment.findMany({
-        where: {
-          deletedAt: null,
-          status: { in: ["PENDING", "OVERDUE"] },
-          sale: { userId: user.id, deletedAt: null },
-        },
-        select: { value: true },
-      }),
-      prisma.installment.count({
-        where: {
-          deletedAt: null,
-          status: "OVERDUE",
-          sale: { userId: user.id, deletedAt: null },
-        },
-      }),
-      prisma.installment.findMany({
-        where: {
-          deletedAt: null,
-          status: { in: ["PENDING", "OVERDUE"] },
-          dueDate: { gte: now, lte: addDays(now, 30) },
-          sale: { userId: user.id, deletedAt: null },
-        },
-        include: {
-          sale: {
-            include: { client: true },
-          },
-        },
-        orderBy: { dueDate: "asc" },
-        take: 10,
-      }),
-    ]);
+  const saleFilter = { userId, deletedAt: null };
 
-  const totalIncome = transactions
-    .filter((t) => t.type === "INCOME")
-    .reduce((sum, t) => sum + Number(t.value), 0);
-
-  const totalExpense = transactions
-    .filter((t) => t.type === "EXPENSE")
-    .reduce((sum, t) => sum + Number(t.value), 0);
-
-  const monthIncome = transactions
-    .filter((t) => t.type === "INCOME" && t.date >= monthStart && t.date <= monthEnd)
-    .reduce((sum, t) => sum + Number(t.value), 0);
-
-  const monthExpense = transactions
-    .filter((t) => t.type === "EXPENSE" && t.date >= monthStart && t.date <= monthEnd)
-    .reduce((sum, t) => sum + Number(t.value), 0);
-
-  const totalReceivable = pendingInstallments.reduce(
-    (sum, i) => sum + Number(i.value),
-    0
-  );
-
-  return {
-    balance: totalIncome - totalExpense,
+  const [
+    totalIncome,
+    totalExpense,
     monthIncome,
     monthExpense,
     totalReceivable,
-    overdueCount: overdueInstallments,
+    overdueCount,
+    upcomingInstallments,
+  ] = await Promise.all([
+    prisma.transaction.aggregate({
+      where: { userId, deletedAt: null, type: "INCOME" },
+      _sum: { value: true },
+    }),
+    prisma.transaction.aggregate({
+      where: { userId, deletedAt: null, type: "EXPENSE" },
+      _sum: { value: true },
+    }),
+    prisma.transaction.aggregate({
+      where: {
+        userId,
+        deletedAt: null,
+        type: "INCOME",
+        date: { gte: monthStart, lte: monthEnd },
+      },
+      _sum: { value: true },
+    }),
+    prisma.transaction.aggregate({
+      where: {
+        userId,
+        deletedAt: null,
+        type: "EXPENSE",
+        date: { gte: monthStart, lte: monthEnd },
+      },
+      _sum: { value: true },
+    }),
+    prisma.installment.aggregate({
+      where: {
+        deletedAt: null,
+        status: { in: ["PENDING", "OVERDUE"] },
+        sale: saleFilter,
+      },
+      _sum: { value: true },
+    }),
+    prisma.installment.count({
+      where: {
+        deletedAt: null,
+        sale: saleFilter,
+        OR: [
+          { status: "OVERDUE" },
+          { status: "PENDING", dueDate: { lt: today } },
+        ],
+      },
+    }),
+    prisma.installment.findMany({
+      where: {
+        deletedAt: null,
+        status: { in: ["PENDING", "OVERDUE"] },
+        dueDate: { gte: today, lte: addDays(now, 30) },
+        sale: saleFilter,
+      },
+      select: {
+        id: true,
+        value: true,
+        dueDate: true,
+        sale: {
+          select: {
+            client: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { dueDate: "asc" },
+      take: 10,
+    }),
+  ]);
+
+  const income = sumDecimal(totalIncome);
+  const expense = sumDecimal(totalExpense);
+
+  return {
+    balance: income - expense,
+    monthIncome: sumDecimal(monthIncome),
+    monthExpense: sumDecimal(monthExpense),
+    totalReceivable: sumDecimal(totalReceivable),
+    overdueCount,
     upcomingPayments: upcomingInstallments.map((i) => ({
       id: i.id,
       clientName: i.sale.client.name,
@@ -86,8 +113,7 @@ export async function getDashboardData() {
 
 export async function updateOverdueInstallments() {
   const user = await requireAuth();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = startOfDay(new Date());
 
   await prisma.installment.updateMany({
     where: {
