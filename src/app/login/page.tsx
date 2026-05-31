@@ -18,15 +18,21 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    const formData = new FormData(e.currentTarget);
-    const result = await loginUser(formData);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const result = await loginUser(formData);
 
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
-    } else {
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+
       router.push("/dashboard");
       router.refresh();
+    } catch {
+      setError("Erro inesperado. Tente novamente.");
+    } finally {
+      setLoading(false);
     }
   }
 

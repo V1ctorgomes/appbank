@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { registerUser } from "@/actions/auth";
+import { loginUser, registerUser } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -18,15 +18,27 @@ export default function RegisterPage() {
     setLoading(true);
     setError("");
 
-    const formData = new FormData(e.currentTarget);
-    const result = await registerUser(formData);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const result = await registerUser(formData);
 
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
-    } else {
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+
+      const loginResult = await loginUser(formData);
+      if (loginResult?.error) {
+        router.push("/login?registered=1");
+        return;
+      }
+
       router.push("/dashboard");
       router.refresh();
+    } catch {
+      setError("Erro inesperado. Tente novamente.");
+    } finally {
+      setLoading(false);
     }
   }
 
