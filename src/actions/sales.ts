@@ -3,11 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
-import { createSaleSchema, type CreateSaleInput } from "@/lib/schemas";
+import { createSaleSchema, updateSaleSchema, type CreateSaleInput, type UpdateSaleInput } from "@/lib/schemas";
 import {
   calcItemTotal,
   calcSaleTotalFromItems,
+  formatMoneyBr,
   generateAutoInstallments,
+  getInstallmentStatusForDate,
+  roundMoney,
   validateInstallmentSum,
 } from "@/lib/sale-utils";
 
@@ -164,6 +167,265 @@ export async function createSale(input: CreateSaleInput) {
   revalidatePath(`/clientes/${data.clientId}`);
 
   return { success: true, saleId: sale.id };
+}
+
+function resolveTotalValueForUpdate(
+  saleType: "ITEMS" | "DIRECT_VALUE",
+  data: UpdateSaleInput
+): number | null {
+  if (saleType === "DIRECT_VALUE") {
+    if (!data.directValue || data.directValue <= 0) return null;
+    return data.directValue;
+  }
+  if (!data.items?.length) return null;
+  return calcSaleTotalFromItems(data.items);
+}
+
+function resolveInstallmentsForUpdate(
+  data: UpdateSaleInput,
+  totalValue: number
+): { number: number; value: number; dueDate: string }[] {
+  if (data.paymentType === "CASH") {
+    return [{ number: 1, value: totalValue, dueDate: data.saleDate }];
+  }
+  if (data.installmentMode === "AUTO") {
+    return generateAutoInstallments(
+      totalValue,
+      data.installmentCount!,
+      data.firstDueDate!
+    );
+  }
+  return (data.installments ?? []).map((inst, index) => ({
+    number: index + 1,
+    value: inst.value,
+    dueDate: inst.dueDate,
+  }));
+}
+
+export async function updateSale(saleId: string, input: UpdateSaleInput) {
+  const user = await requireAuth();
+
+  const sale = await prisma.sale.findFirst({
+    where: { id: saleId, userId: user.id, deletedAt: null },
+    include: {
+      items: true,
+      installments: {
+        where: { deletedAt: null },
+        orderBy: { number: "asc" },
+      },
+    },
+  });
+
+  if (!sale) {
+    return { error: "Venda não encontrada" };
+  }
+
+  const parsed = updateSaleSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message ?? "Dados inválidos" };
+  }
+
+  const data = parsed.data;
+  const saleType = sale.type;
+
+  if (saleType === "DIRECT_VALUE" && !data.description?.trim()) {
+    return { error: "Descrição é obrigatória" };
+  }
+  if (saleType === "ITEMS" && !data.items?.length) {
+    return { error: "Adicione pelo menos um item" };
+  }
+
+  const totalValue = resolveTotalValueForUpdate(saleType, data);
+  if (!totalValue || totalValue <= 0) {
+    return { error: "O valor total da venda deve ser maior que zero" };
+  }
+
+  const client = await prisma.client.findFirst({
+    where: { id: data.clientId, userId: user.id, deletedAt: null },
+  });
+  if (!client) {
+    return { error: "Cliente não encontrado" };
+  }
+
+  const paidInstallments = sale.installments.filter((i) => i.status === "PAID");
+  const unpaidInstallments = sale.installments.filter(
+    (i) => i.status === "PENDING" || i.status === "OVERDUE"
+  );
+  const paidSum = roundMoney(
+    paidInstallments.reduce((s, i) => s + Number(i.value), 0)
+  );
+  const allPaid = unpaidInstallments.length === 0 && paidInstallments.length > 0;
+  const saleDate = new Date(data.saleDate + "T12:00:00");
+  const oldClientId = sale.clientId;
+
+  if (allPaid) {
+    const clientOk = await prisma.client.findFirst({
+      where: { id: data.clientId, userId: user.id, deletedAt: null },
+    });
+    if (!clientOk) return { error: "Cliente não encontrado" };
+
+    await prisma.sale.update({
+      where: { id: saleId },
+      data: {
+        clientId: data.clientId,
+        saleDate,
+        notes: data.notes || null,
+      },
+    });
+
+    revalidatePath("/vendas");
+    revalidatePath(`/vendas/${saleId}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/clientes");
+    if (oldClientId !== data.clientId) {
+      revalidatePath(`/clientes/${oldClientId}`);
+    }
+    revalidatePath(`/clientes/${data.clientId}`);
+
+    return { success: true };
+  }
+
+  if (totalValue < paidSum) {
+    return {
+      error: `O valor total não pode ser menor que o já recebido (${formatMoneyBr(paidSum)})`,
+    };
+  }
+
+  try {
+    if (paidInstallments.length === 0) {
+      if (!data.paymentType) {
+        return { error: "Informe a forma de pagamento" };
+      }
+
+      const installments = resolveInstallmentsForUpdate(data, totalValue);
+      if (!validateInstallmentSum(installments, totalValue)) {
+        return { error: "A soma das parcelas deve ser igual ao valor total da venda" };
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.sale.update({
+          where: { id: saleId },
+          data: {
+            clientId: data.clientId,
+            saleDate,
+            notes: data.notes || null,
+            description: saleType === "DIRECT_VALUE" ? data.description : null,
+            totalValue,
+          },
+        });
+
+        if (saleType === "ITEMS") {
+          await tx.saleItem.deleteMany({ where: { saleId } });
+          await tx.saleItem.createMany({
+            data: (data.items ?? []).map((item) => ({
+              saleId,
+              name: item.name,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: calcItemTotal(item.quantity, item.unitPrice),
+            })),
+          });
+        }
+
+        await tx.installment.updateMany({
+          where: { saleId, deletedAt: null },
+          data: { deletedAt: new Date() },
+        });
+
+        await tx.installment.createMany({
+          data: installments.map((inst) => {
+            const dueDate = new Date(inst.dueDate + "T12:00:00");
+            return {
+              saleId,
+              number: inst.number,
+              value: inst.value,
+              dueDate,
+              status: getInstallmentStatusForDate(dueDate),
+            };
+          }),
+        });
+      });
+    } else {
+      const expectedUnpaidSum = roundMoney(totalValue - paidSum);
+      const inputInstallments = data.installments ?? [];
+
+      if (inputInstallments.length !== unpaidInstallments.length) {
+        return {
+          error: "A quantidade de parcelas em aberto não pode ser alterada enquanto houver recebimentos",
+        };
+      }
+
+      const unpaidSum = roundMoney(
+        inputInstallments.reduce((s, i) => s + i.value, 0)
+      );
+
+      if (Math.abs(unpaidSum - expectedUnpaidSum) >= 0.01) {
+        return {
+          error: `A soma das parcelas em aberto deve ser ${formatMoneyBr(expectedUnpaidSum)}`,
+        };
+      }
+
+      const unpaidIds = new Set(unpaidInstallments.map((i) => i.id));
+      for (const inst of inputInstallments) {
+        if (!inst.id || !unpaidIds.has(inst.id)) {
+          return { error: "Parcela inválida" };
+        }
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.sale.update({
+          where: { id: saleId },
+          data: {
+            clientId: data.clientId,
+            saleDate,
+            notes: data.notes || null,
+            description: saleType === "DIRECT_VALUE" ? data.description : null,
+            totalValue,
+          },
+        });
+
+        if (saleType === "ITEMS") {
+          await tx.saleItem.deleteMany({ where: { saleId } });
+          await tx.saleItem.createMany({
+            data: (data.items ?? []).map((item) => ({
+              saleId,
+              name: item.name,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: calcItemTotal(item.quantity, item.unitPrice),
+            })),
+          });
+        }
+
+        for (const inst of inputInstallments) {
+          const dueDate = new Date(inst.dueDate + "T12:00:00");
+          await tx.installment.update({
+            where: { id: inst.id! },
+            data: {
+              value: inst.value,
+              dueDate,
+              status: getInstallmentStatusForDate(dueDate),
+            },
+          });
+        }
+      });
+    }
+
+    revalidatePath("/vendas");
+    revalidatePath(`/vendas/${saleId}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/recebimentos");
+    revalidatePath("/clientes");
+    if (oldClientId !== data.clientId) {
+      revalidatePath(`/clientes/${oldClientId}`);
+    }
+    revalidatePath(`/clientes/${data.clientId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("updateSale error:", error);
+    return { error: "Erro ao atualizar venda. Tente novamente." };
+  }
 }
 
 export async function deleteSale(id: string) {

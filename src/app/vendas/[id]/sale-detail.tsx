@@ -11,7 +11,7 @@ import { PaymentButton } from "@/components/payments/payment-modal";
 import { deleteSale, forceDeleteSale } from "@/actions/sales";
 import { cancelPayment } from "@/actions/payments";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 
 interface SaleDetailProps {
   sale: {
@@ -109,10 +109,18 @@ export function SaleDetail({ sale }: SaleDetailProps) {
           <ArrowLeft className="mr-1 h-4 w-4" />
           Voltar
         </Link>
-        <Button variant="danger" size="sm" onClick={handleDelete} disabled={loading}>
-          <Trash2 className="mr-1 h-4 w-4" />
-          Excluir
-        </Button>
+        <div className="flex gap-2">
+          <Link href={`/vendas/${sale.id}/editar`}>
+            <Button variant="secondary" size="sm">
+              <Pencil className="mr-1 h-4 w-4" />
+              Editar
+            </Button>
+          </Link>
+          <Button variant="danger" size="sm" onClick={handleDelete} disabled={loading}>
+            <Trash2 className="mr-1 h-4 w-4" />
+            Excluir
+          </Button>
+        </div>
       </div>
 
       {error && (

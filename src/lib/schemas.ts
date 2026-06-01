@@ -133,6 +133,54 @@ export type CreateSaleInput = z.infer<typeof createSaleSchema>;
 export type SaleItemInput = z.infer<typeof saleItemSchema>;
 export type InstallmentFormInput = z.infer<typeof installmentSchema>;
 
+const updateInstallmentSchema = installmentSchema.extend({
+  id: z.string().optional(),
+});
+
+export const updateSaleSchema = z
+  .object({
+    clientId: z.string().min(1, "Cliente é obrigatório"),
+    saleDate: z.string().min(1, "Data da venda é obrigatória"),
+    notes: z.string().optional(),
+    description: z.string().optional(),
+    directValue: z.coerce.number().optional(),
+    items: z.array(saleItemSchema).optional(),
+    paymentType: z.enum(["CASH", "INSTALLMENT"]).optional(),
+    installmentMode: z.enum(["AUTO", "MANUAL"]).optional(),
+    installmentCount: z.coerce.number().int().positive().optional(),
+    firstDueDate: z.string().optional(),
+    installments: z.array(updateInstallmentSchema).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.paymentType === "INSTALLMENT" && data.installmentMode === "AUTO") {
+      if (!data.installmentCount || data.installmentCount < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe a quantidade de parcelas",
+          path: ["installmentCount"],
+        });
+      }
+      if (!data.firstDueDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe o primeiro vencimento",
+          path: ["firstDueDate"],
+        });
+      }
+    }
+    if (data.paymentType === "INSTALLMENT" && data.installmentMode === "MANUAL") {
+      if (!data.installments?.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Adicione pelo menos uma parcela",
+          path: ["installments"],
+        });
+      }
+    }
+  });
+
+export type UpdateSaleInput = z.infer<typeof updateSaleSchema>;
+
 export const paymentSchema = z.object({
   installmentId: z.string().min(1, "Parcela é obrigatória"),
   paymentDate: z.string().min(1, "Data do pagamento é obrigatória"),

@@ -53,6 +53,21 @@ export function calcSaleTotalFromItems(
 
 type InstallmentLike = { status: string; value: unknown };
 
+export function formatMoneyBr(value: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+}
+
+export function getInstallmentStatusForDate(dueDate: Date): "PENDING" | "OVERDUE" {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  return due < today ? "OVERDUE" : "PENDING";
+}
+
 export function getSalePaymentSummary(installments: InstallmentLike[]) {
   const pending = installments.filter(
     (i) => i.status === "PENDING" || i.status === "OVERDUE"
