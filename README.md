@@ -50,6 +50,13 @@ npm run dev
 
 Acesse [http://localhost:3000](http://localhost:3000) e crie sua conta.
 
+### Produção (Vercel)
+
+- App: [https://appbank-nu.vercel.app](https://appbank-nu.vercel.app)
+- Consulta de parcelas (clientes): [https://appbank-nu.vercel.app/consulta](https://appbank-nu.vercel.app/consulta)
+
+Na Vercel, configure `AUTH_URL=https://appbank-nu.vercel.app` (sem barra no final).
+
 ## Módulos implementados (v0.1)
 
 - Autenticação (login/registro)
@@ -60,6 +67,7 @@ Acesse [http://localhost:3000](http://localhost:3000) e crie sua conta.
 - Movimentações (entradas/saídas manuais com filtros)
 - Categorias personalizadas (Configurações)
 - Relatórios (resumo financeiro, contas a receber, histórico)
+- Consulta pública por CPF (`/consulta`)
 - Navegação responsiva
 
 ## Scripts
