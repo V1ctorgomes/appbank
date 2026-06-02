@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { createCategory, deleteCategory } from "@/actions/categories";
 import { Trash2 } from "lucide-react";
+import { PortalLinkCard } from "./portal-link-card";
 
 interface Category {
   id: string;
@@ -17,6 +18,8 @@ interface Category {
 
 interface CategoriesManagerProps {
   categories: Category[];
+  portalUrl: string;
+  userId: string;
 }
 
 function CategorySection({
@@ -107,15 +110,17 @@ function CategorySection({
   );
 }
 
-export function CategoriesManager({ categories }: CategoriesManagerProps) {
+export function CategoriesManager({ categories, portalUrl, userId }: CategoriesManagerProps) {
   const router = useRouter();
 
   return (
     <AppLayout>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Configurações</h1>
-        <p className="text-slate-500">Gerencie categorias de entradas e saídas</p>
+        <p className="text-slate-500">Gerencie categorias e o link de consulta para clientes</p>
       </div>
+
+      <PortalLinkCard portalUrl={portalUrl} userId={userId} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <CategorySection
