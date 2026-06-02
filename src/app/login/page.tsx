@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { loginUser } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import {
+  ADMIN_WHATSAPP_DISPLAY,
+  ADMIN_WHATSAPP_URL,
+  REGISTRATION_DISABLED_MESSAGE,
+} from "@/lib/admin-contact";
+import { MessageCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -71,12 +76,19 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-slate-500">
-          Não tem conta?{" "}
-          <Link href="/register" className="font-medium text-primary-600 hover:underline">
-            Criar conta
-          </Link>
-        </p>
+        <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4 text-center">
+          <p className="text-sm text-slate-600">{REGISTRATION_DISABLED_MESSAGE}</p>
+          <p className="mt-2 text-sm font-medium text-slate-800">{ADMIN_WHATSAPP_DISPLAY}</p>
+          <a
+            href={ADMIN_WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex items-center text-sm font-medium text-primary-600 hover:underline"
+          >
+            <MessageCircle className="mr-1 h-4 w-4" />
+            Falar com o administrador no WhatsApp
+          </a>
+        </div>
       </Card>
     </div>
   );
