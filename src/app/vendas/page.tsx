@@ -1,21 +1,30 @@
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { SaleStatusBadge } from "@/components/ui/status-badge";
 import { getSales } from "@/actions/sales";
 import { getSalePaymentSummary } from "@/lib/sale-utils";
+import { PAGE_SIZE } from "@/lib/pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Plus, Eye } from "lucide-react";
 
-export default async function VendasPage() {
-  const sales = await getSales();
+interface PageProps {
+  searchParams: Promise<{ page?: string }>;
+}
+
+export default async function VendasPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const { items: sales, total, page, totalPages } = await getSales(params.page);
 
   return (
     <AppLayout>
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Vendas</h1>
-          <p className="text-slate-500">{sales.length} venda(s) registrada(s)</p>
+          <p className="text-slate-500">
+            {total} venda(s) · página {page} de {totalPages}
+          </p>
         </div>
         <Link href="/vendas/nova">
           <Button>
@@ -25,7 +34,7 @@ export default async function VendasPage() {
         </Link>
       </div>
 
-      {sales.length === 0 ? (
+      {total === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <p className="text-slate-500">Nenhuma venda registrada.</p>
           <Link href="/vendas/nova" className="mt-4 inline-block">
@@ -79,6 +88,16 @@ export default async function VendasPage() {
                 })}
               </tbody>
             </table>
+          </div>
+          <div className="px-6 pb-4">
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              basePath="/vendas"
+            />
+            <p className="mt-2 text-xs text-slate-400">
+              Exibindo até {PAGE_SIZE} vendas por página
+            </p>
           </div>
         </div>
       )}

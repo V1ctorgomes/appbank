@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
 import {
-  getTransactions,
+  getAllTransactions,
   getTransactionSummary,
   type TransactionFilters,
 } from "@/actions/transactions";
@@ -63,7 +63,7 @@ export async function getReportData(filters: TransactionFilters = {}) {
 
   const [summary, transactions, accountsReceivable] = await Promise.all([
     getTransactionSummary(filters),
-    getTransactions(filters),
+    getAllTransactions(filters),
     getAccountsReceivable(),
   ]);
 

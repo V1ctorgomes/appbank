@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
 import { transactionSchema, type TransactionInput } from "@/lib/schemas";
+import { PAGE_SIZE, parsePage, getTotalPages } from "@/lib/pagination";
 
 export type TransactionFilters = {
   startDate?: string;
@@ -42,7 +43,7 @@ function buildTransactionWhere(userId: string, filters: TransactionFilters = {})
   };
 }
 
-export async function getTransactions(filters: TransactionFilters = {}) {
+export async function getAllTransactions(filters: TransactionFilters = {}) {
   const user = await requireAuth();
 
   return prisma.transaction.findMany({
@@ -60,6 +61,44 @@ export async function getTransactions(filters: TransactionFilters = {}) {
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
+}
+
+export async function getTransactions(
+  filters: TransactionFilters = {},
+  page?: string | number
+) {
+  const user = await requireAuth();
+  const where = buildTransactionWhere(user.id, filters);
+
+  const total = await prisma.transaction.count({ where });
+  const totalPages = getTotalPages(total);
+  const currentPage = Math.min(parsePage(page), totalPages);
+  const skip = (currentPage - 1) * PAGE_SIZE;
+
+  const items = await prisma.transaction.findMany({
+      where,
+      skip,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        type: true,
+        origin: true,
+        description: true,
+        value: true,
+        date: true,
+        notes: true,
+        categoryId: true,
+        category: { select: { name: true } },
+      },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    });
+
+  return {
+    items,
+    total,
+    page: currentPage,
+    totalPages: getTotalPages(total),
+  };
 }
 
 export async function createTransaction(input: TransactionInput) {

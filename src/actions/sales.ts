@@ -13,26 +13,43 @@ import {
   roundMoney,
   validateInstallmentSum,
 } from "@/lib/sale-utils";
+import { PAGE_SIZE, parsePage, getTotalPages } from "@/lib/pagination";
 
-export async function getSales() {
+export async function getSales(page?: string | number) {
   const user = await requireAuth();
 
-  return prisma.sale.findMany({
-    where: { userId: user.id, deletedAt: null },
-    select: {
-      id: true,
-      type: true,
-      saleDate: true,
-      totalValue: true,
-      client: { select: { id: true, name: true } },
-      installments: {
-        where: { deletedAt: null },
-        select: { id: true, status: true, value: true },
-        orderBy: { number: "asc" },
+  const where = { userId: user.id, deletedAt: null };
+
+  const total = await prisma.sale.count({ where });
+  const totalPages = getTotalPages(total);
+  const currentPage = Math.min(parsePage(page), totalPages);
+  const skip = (currentPage - 1) * PAGE_SIZE;
+
+  const items = await prisma.sale.findMany({
+      where,
+      skip,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        type: true,
+        saleDate: true,
+        totalValue: true,
+        client: { select: { id: true, name: true } },
+        installments: {
+          where: { deletedAt: null },
+          select: { id: true, status: true, value: true },
+          orderBy: { number: "asc" },
+        },
       },
-    },
-    orderBy: { saleDate: "desc" },
-  });
+      orderBy: { saleDate: "desc" },
+    });
+
+  return {
+    items,
+    total,
+    page: currentPage,
+    totalPages: getTotalPages(total),
+  };
 }
 
 export async function getSale(id: string) {

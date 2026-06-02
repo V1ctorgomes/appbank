@@ -2,20 +2,32 @@ import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/pagination";
 import { getClients } from "@/actions/clients";
 import { getClientBalance } from "@/lib/client-utils";
+import { PAGE_SIZE } from "@/lib/pagination";
 import { formatCurrency, formatPhone, formatCpf } from "@/lib/utils";
 import { Plus, Eye } from "lucide-react";
 
-export default async function ClientesPage() {
-  const clients = await getClients();
+interface PageProps {
+  searchParams: Promise<{ page?: string }>;
+}
+
+export default async function ClientesPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const { items: clients, total, page, totalPages } = await getClients(
+    undefined,
+    params.page
+  );
 
   return (
     <AppLayout>
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Clientes</h1>
-          <p className="text-slate-500">{clients.length} cliente(s) cadastrado(s)</p>
+          <p className="text-slate-500">
+            {total} cliente(s) · página {page} de {totalPages}
+          </p>
         </div>
         <Link href="/clientes/novo">
           <Button>
@@ -25,7 +37,7 @@ export default async function ClientesPage() {
         </Link>
       </div>
 
-      {clients.length === 0 ? (
+      {total === 0 ? (
         <Card>
           <p className="text-center text-slate-500">
             Nenhum cliente cadastrado.{" "}
@@ -56,7 +68,11 @@ export default async function ClientesPage() {
                       <td className="px-6 py-4 text-slate-600">{formatPhone(client.phone)}</td>
                       <td className="px-6 py-4 text-slate-600">{formatCpf(client.cpf)}</td>
                       <td className="px-6 py-4">
-                        <span className={balance > 0 ? "font-medium text-amber-700" : "text-slate-400"}>
+                        <span
+                          className={
+                            balance > 0 ? "font-medium text-amber-700" : "text-slate-400"
+                          }
+                        >
                           {formatCurrency(balance)}
                         </span>
                       </td>
@@ -73,6 +89,16 @@ export default async function ClientesPage() {
                 })}
               </tbody>
             </table>
+          </div>
+          <div className="px-6 pb-4">
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              basePath="/clientes"
+            />
+            <p className="mt-2 text-xs text-slate-400">
+              Exibindo até {PAGE_SIZE} clientes por página
+            </p>
           </div>
         </div>
       )}

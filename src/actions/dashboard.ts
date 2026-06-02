@@ -57,6 +57,7 @@ export async function getDashboardData() {
       where: {
         deletedAt: null,
         status: { in: ["PENDING", "OVERDUE"] },
+        dueDate: { gte: monthStart, lte: monthEnd },
         sale: saleFilter,
       },
       _sum: { value: true },

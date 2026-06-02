@@ -30,8 +30,9 @@ export default async function DashboardPage() {
           variant="expense"
         />
         <StatCard
-          title="Total a Receber"
+          title="A Receber no Mês"
           value={formatCurrency(data.totalReceivable)}
+          subtitle="Vencimentos do mês atual"
         />
         <StatCard
           title="Parcelas Atrasadas"

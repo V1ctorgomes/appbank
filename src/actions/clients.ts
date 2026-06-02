@@ -5,40 +5,57 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
 import { clientSchema } from "@/lib/schemas";
 import { normalizeCpf, normalizePhone } from "@/lib/validators";
+import { PAGE_SIZE, parsePage, getTotalPages } from "@/lib/pagination";
 
-export async function getClients(search?: string) {
+export async function getClients(search?: string, page?: string | number) {
   const user = await requireAuth();
 
-  return prisma.client.findMany({
-    where: {
-      userId: user.id,
-      deletedAt: null,
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { cpf: { contains: search.replace(/\D/g, "") } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      phone: true,
-      cpf: true,
-      sales: {
-        where: { deletedAt: null },
-        select: {
-          installments: {
-            where: { deletedAt: null, status: { in: ["PENDING", "OVERDUE"] } },
-            select: { value: true },
+  const where = {
+    userId: user.id,
+    deletedAt: null,
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { cpf: { contains: search.replace(/\D/g, "") } },
+          ],
+        }
+      : {}),
+  };
+
+  const total = await prisma.client.count({ where });
+  const totalPages = getTotalPages(total);
+  const currentPage = Math.min(parsePage(page), totalPages);
+  const skip = (currentPage - 1) * PAGE_SIZE;
+
+  const items = await prisma.client.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        cpf: true,
+        sales: {
+          where: { deletedAt: null },
+          select: {
+            installments: {
+              where: { deletedAt: null, status: { in: ["PENDING", "OVERDUE"] } },
+              select: { value: true },
+            },
           },
         },
       },
-    },
-  });
+    });
+
+  return {
+    items,
+    total,
+    page: currentPage,
+    totalPages: getTotalPages(total),
+  };
 }
 
 export async function getClient(id: string) {
