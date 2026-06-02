@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
+import { parseMonthFilter } from "@/lib/month-filter";
 import { paymentSchema, type PaymentInput } from "@/lib/schemas";
 
 async function syncOverdueInstallments(userId: string) {
@@ -19,14 +20,17 @@ async function syncOverdueInstallments(userId: string) {
   });
 }
 
-export async function getPendingInstallments() {
+export async function getPendingInstallments(month?: string) {
   const user = await requireAuth();
   await syncOverdueInstallments(user.id);
 
-  return prisma.installment.findMany({
+  const { start, end } = parseMonthFilter(month);
+
+  const items = await prisma.installment.findMany({
     where: {
       deletedAt: null,
       status: { in: ["PENDING", "OVERDUE"] },
+      dueDate: { gte: start, lte: end },
       sale: { userId: user.id, deletedAt: null },
     },
     select: {
@@ -44,14 +48,20 @@ export async function getPendingInstallments() {
     },
     orderBy: [{ dueDate: "asc" }, { number: "asc" }],
   });
+
+  const totalValue = items.reduce((sum, i) => sum + Number(i.value), 0);
+
+  return { items, totalValue };
 }
 
-export async function getPaymentHistory() {
+export async function getPaymentHistory(month?: string) {
   const user = await requireAuth();
+  const { start, end } = parseMonthFilter(month);
 
-  return prisma.payment.findMany({
+  const items = await prisma.payment.findMany({
     where: {
       deletedAt: null,
+      paymentDate: { gte: start, lte: end },
       installment: {
         sale: { userId: user.id },
       },
@@ -66,8 +76,11 @@ export async function getPaymentHistory() {
       },
     },
     orderBy: { paymentDate: "desc" },
-    take: 50,
   });
+
+  const totalValue = items.reduce((sum, p) => sum + Number(p.value), 0);
+
+  return { items, totalValue };
 }
 
 export async function getInstallment(installmentId: string) {
