@@ -322,6 +322,7 @@ export async function registerLoanPayment(input: LoanPaymentInput) {
 
   revalidatePath("/emprestimos");
   revalidatePath(`/emprestimos/${loanId}`);
+  revalidatePath("/recebimentos");
   revalidatePath("/dashboard");
   revalidatePath("/movimentacoes");
   revalidatePath("/clientes");
@@ -392,6 +393,7 @@ export async function cancelLoanPayment(paymentId: string) {
 
   revalidatePath("/emprestimos");
   revalidatePath(`/emprestimos/${payment.loanId}`);
+  revalidatePath("/recebimentos");
   revalidatePath("/dashboard");
   revalidatePath("/movimentacoes");
   revalidatePath("/clientes");

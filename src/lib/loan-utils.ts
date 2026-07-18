@@ -147,6 +147,29 @@ function dueDateInMonth(year: number, monthIndex: number, paymentDay: number): D
 }
 
 /**
+ * Vencimento do empréstimo em um mês específico, ou null se a cobrança ainda não começou.
+ */
+export function loanDueDateForMonth(
+  paymentDay: number,
+  billingStartMonth: Date | string,
+  year: number,
+  monthIndex: number
+): Date | null {
+  const start = typeof billingStartMonth === "string"
+    ? new Date(billingStartMonth)
+    : billingStartMonth;
+
+  const startYear = start.getUTCFullYear();
+  const startMonth = start.getUTCMonth();
+
+  if (year < startYear || (year === startYear && monthIndex < startMonth)) {
+    return null;
+  }
+
+  return dueDateInMonth(year, monthIndex, paymentDay);
+}
+
+/**
  * Próximo vencimento: dia do pagamento a cada mês, a partir do mês de início da cobrança.
  */
 export function nextLoanDueDate(
