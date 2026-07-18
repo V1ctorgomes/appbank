@@ -26,6 +26,10 @@ function ConsultaResult({ data }: { data: PortalClientData }) {
       .map((i) => ({ ...i, saleDate: sale.saleDate }))
   );
 
+  const hasOpenSales = openInstallments.length > 0;
+  const hasLoans = data.loans.length > 0;
+  const hasNothingOpen = !hasOpenSales && !hasLoans;
+
   return (
     <div className="mt-8 space-y-6">
       <div className="rounded-xl border border-primary-100 bg-primary-50 p-4 text-center">
@@ -54,14 +58,63 @@ function ConsultaResult({ data }: { data: PortalClientData }) {
 
       {data.totalPaid > 0 && (
         <p className="text-center text-sm text-slate-600">
-          Total já pago:{" "}
+          Total já pago (vendas):{" "}
           <span className="font-semibold text-green-700">
             {formatCurrency(data.totalPaid)}
           </span>
         </p>
       )}
 
-      {openInstallments.length > 0 ? (
+      {hasLoans && (
+        <Card title="Empréstimos em aberto">
+          <div className="space-y-4">
+            {data.loans.map((loan, idx) => (
+              <div key={idx} className="rounded-lg border border-slate-100 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-slate-800">
+                      Empréstimo — {formatDate(loan.loanDate)}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      Principal {formatCurrency(loan.principal)} · Juros {loan.interestRate}%
+                      a.m. · Pagamento todo dia {loan.paymentDay}
+                    </p>
+                  </div>
+                  <StatusBadge status={loan.status} />
+                </div>
+                <dl className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
+                  <div>
+                    <dt className="text-slate-500">Saldo da dívida</dt>
+                    <dd className="font-semibold text-slate-900">
+                      {formatCurrency(loan.remainingBalance)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Juros do mês</dt>
+                    <dd className="font-semibold text-amber-700">
+                      {formatCurrency(loan.monthlyInterest)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Para quitar agora</dt>
+                    <dd className="font-semibold text-slate-900">
+                      {formatCurrency(loan.settleTotal)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Próximo vencimento</dt>
+                    <dd className="font-semibold text-slate-900">
+                      {formatDate(loan.nextDueDate)}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {hasOpenSales ? (
         <Card title="Parcelas em aberto">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -88,10 +141,12 @@ function ConsultaResult({ data }: { data: PortalClientData }) {
             </table>
           </div>
         </Card>
-      ) : (
+      ) : null}
+
+      {hasNothingOpen && (
         <Card>
           <p className="text-center text-sm text-green-700">
-            Você não possui parcelas em aberto no momento.
+            Você não possui parcelas nem empréstimos em aberto no momento.
           </p>
         </Card>
       )}
