@@ -202,11 +202,18 @@ export const createLoanSchema = z.object({
     .int("Dia do pagamento deve ser um número inteiro")
     .min(1, "Dia do pagamento deve ser entre 1 e 31")
     .max(31, "Dia do pagamento deve ser entre 1 e 31"),
+  billingStartMonth: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, "Informe o mês de início da cobrança"),
   loanDate: z.string().min(1, "Data do empréstimo é obrigatória"),
   notes: z.string().optional(),
 });
 
 export type CreateLoanInput = z.infer<typeof createLoanSchema>;
+
+export const updateLoanSchema = createLoanSchema;
+
+export type UpdateLoanInput = z.infer<typeof updateLoanSchema>;
 
 export const loanPaymentSchema = z.object({
   loanId: z.string().min(1, "Empréstimo é obrigatório"),

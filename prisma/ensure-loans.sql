@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS "Loan" (
   "remainingBalance" DECIMAL(12,2) NOT NULL,
   "interestRate" DECIMAL(7,2) NOT NULL,
   "paymentDay" INTEGER NOT NULL DEFAULT 1,
+  "billingStartMonth" DATE NOT NULL DEFAULT CURRENT_DATE,
   "loanDate" DATE NOT NULL,
   "notes" TEXT,
   "status" "LoanStatus" NOT NULL DEFAULT 'ACTIVE',
@@ -39,6 +40,15 @@ CREATE TABLE IF NOT EXISTS "Loan" (
 );
 
 ALTER TABLE "Loan" ADD COLUMN IF NOT EXISTS "paymentDay" INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE "Loan" ADD COLUMN IF NOT EXISTS "billingStartMonth" DATE;
+UPDATE "Loan"
+SET "billingStartMonth" = DATE_TRUNC('month', "loanDate")::date
+WHERE "billingStartMonth" IS NULL;
+ALTER TABLE "Loan" ALTER COLUMN "billingStartMonth" SET DEFAULT CURRENT_DATE;
+DO $$ BEGIN
+  ALTER TABLE "Loan" ALTER COLUMN "billingStartMonth" SET NOT NULL;
+EXCEPTION WHEN others THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS "LoanPayment" (
   "id" TEXT NOT NULL,

@@ -5,11 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
 import {
   createLoanSchema,
+  updateLoanSchema,
   loanPaymentSchema,
   type CreateLoanInput,
+  type UpdateLoanInput,
   type LoanPaymentInput,
 } from "@/lib/schemas";
-import { allocateLoanPayment } from "@/lib/loan-utils";
+import { allocateLoanPayment, monthInputToDate } from "@/lib/loan-utils";
 import { roundMoney } from "@/lib/sale-utils";
 import { PAGE_SIZE, parsePage, getTotalPages } from "@/lib/pagination";
 
@@ -33,6 +35,7 @@ export async function getLoans(page?: string | number) {
       remainingBalance: true,
       interestRate: true,
       paymentDay: true,
+      billingStartMonth: true,
       loanDate: true,
       status: true,
       client: { select: { id: true, name: true } },
@@ -71,7 +74,7 @@ export async function createLoan(input: CreateLoanInput) {
     return { error: parsed.error.errors[0]?.message ?? "Dados inválidos" };
   }
 
-  const { clientId, principal, interestRate, paymentDay, loanDate, notes } =
+  const { clientId, principal, interestRate, paymentDay, billingStartMonth, loanDate, notes } =
     parsed.data;
   const amount = roundMoney(principal);
 
@@ -92,6 +95,7 @@ export async function createLoan(input: CreateLoanInput) {
         remainingBalance: amount,
         interestRate,
         paymentDay,
+        billingStartMonth: monthInputToDate(billingStartMonth),
         loanDate: new Date(loanDate + "T12:00:00"),
         notes: notes || null,
         status: "ACTIVE",
@@ -120,6 +124,116 @@ export async function createLoan(input: CreateLoanInput) {
   revalidatePath(`/clientes/${clientId}`);
 
   return { success: true, id: loan.id };
+}
+
+export async function updateLoan(id: string, input: UpdateLoanInput) {
+  const user = await requireAuth();
+
+  const parsed = updateLoanSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message ?? "Dados inválidos" };
+  }
+
+  const loan = await prisma.loan.findFirst({
+    where: { id, userId: user.id, deletedAt: null },
+    include: {
+      client: true,
+      payments: { where: { deletedAt: null }, select: { id: true } },
+    },
+  });
+
+  if (!loan) {
+    return { error: "Empréstimo não encontrado" };
+  }
+
+  if (loan.payments.length > 0) {
+    return {
+      error: "Não é possível editar um empréstimo que já possui pagamentos.",
+    };
+  }
+
+  if (loan.status !== "ACTIVE") {
+    return { error: "Só é possível editar empréstimos ativos." };
+  }
+
+  const { clientId, principal, interestRate, paymentDay, billingStartMonth, loanDate, notes } =
+    parsed.data;
+  const amount = roundMoney(principal);
+
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, userId: user.id, deletedAt: null },
+  });
+
+  if (!client) {
+    return { error: "Cliente não encontrado" };
+  }
+
+  const oldPrincipal = Number(loan.principal);
+  const oldDate = loan.loanDate;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.loan.update({
+      where: { id },
+      data: {
+        clientId,
+        principal: amount,
+        remainingBalance: amount,
+        interestRate,
+        paymentDay,
+        billingStartMonth: monthInputToDate(billingStartMonth),
+        loanDate: new Date(loanDate + "T12:00:00"),
+        notes: notes || null,
+      },
+    });
+
+    const disbursement = await tx.transaction.findFirst({
+      where: {
+        userId: user.id,
+        origin: "LOAN_DISBURSEMENT",
+        deletedAt: null,
+        value: oldPrincipal,
+        date: oldDate,
+        description: { startsWith: "Empréstimo liberado" },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (disbursement) {
+      await tx.transaction.update({
+        where: { id: disbursement.id },
+        data: {
+          description: `Empréstimo liberado — ${client.name}`,
+          value: amount,
+          date: new Date(loanDate + "T12:00:00"),
+          notes: notes || null,
+        },
+      });
+    } else {
+      await tx.transaction.create({
+        data: {
+          userId: user.id,
+          type: "EXPENSE",
+          origin: "LOAN_DISBURSEMENT",
+          description: `Empréstimo liberado — ${client.name}`,
+          value: amount,
+          date: new Date(loanDate + "T12:00:00"),
+          notes: notes || null,
+        },
+      });
+    }
+  });
+
+  revalidatePath("/emprestimos");
+  revalidatePath(`/emprestimos/${id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/movimentacoes");
+  revalidatePath("/clientes");
+  revalidatePath(`/clientes/${clientId}`);
+  if (clientId !== loan.clientId) {
+    revalidatePath(`/clientes/${loan.clientId}`);
+  }
+
+  return { success: true };
 }
 
 export async function registerLoanPayment(input: LoanPaymentInput) {

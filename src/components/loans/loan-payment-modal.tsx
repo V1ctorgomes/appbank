@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { registerLoanPayment } from "@/actions/loans";
 import {
   allocateLoanPayment,
+  formatPaymentSchedule,
   loanPaymentTypeLabel,
 } from "@/lib/loan-utils";
 import { formatCurrency } from "@/lib/utils";
@@ -18,6 +19,7 @@ export interface LoanPaymentInfo {
   remainingBalance: number;
   interestRate: number;
   paymentDay?: number;
+  billingStartMonth?: Date | string;
 }
 
 interface LoanPaymentModalProps {
@@ -109,7 +111,15 @@ export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
               {formatCurrency(interestDue)}
             </span>
           </div>
-          {loan.paymentDay != null && (
+          {loan.paymentDay != null && loan.billingStartMonth != null && (
+            <div className="flex justify-between">
+              <span className="text-slate-500">Cobrança</span>
+              <span className="font-medium text-slate-800 text-right">
+                {formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth)}
+              </span>
+            </div>
+          )}
+          {loan.paymentDay != null && loan.billingStartMonth == null && (
             <div className="flex justify-between">
               <span className="text-slate-500">Dia do pagamento</span>
               <span className="font-medium text-slate-800">Todo dia {loan.paymentDay}</span>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getLoans } from "@/actions/loans";
-import { calcMonthlyInterest } from "@/lib/loan-utils";
+import { calcMonthlyInterest, formatPaymentSchedule } from "@/lib/loan-utils";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Plus, Eye } from "lucide-react";
@@ -52,7 +52,7 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
                   <th className="px-6 py-3 font-medium">Principal</th>
                   <th className="px-6 py-3 font-medium">Saldo</th>
                   <th className="px-6 py-3 font-medium">Juros/mês</th>
-                  <th className="px-6 py-3 font-medium">Dia pgto</th>
+                  <th className="px-6 py-3 font-medium">Cobrança</th>
                   <th className="px-6 py-3 font-medium">Status</th>
                   <th className="px-6 py-3 font-medium">Ações</th>
                 </tr>
@@ -85,7 +85,7 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
                         )}
                       </td>
                       <td className="px-6 py-4 text-slate-600">
-                        Dia {loan.paymentDay}
+                        {formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth)}
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={loan.status} />

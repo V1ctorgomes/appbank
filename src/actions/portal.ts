@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { normalizeCpf, validateCpf } from "@/lib/validators";
 import { syncOverdueInstallments } from "@/lib/installments";
-import { calcMonthlyInterest } from "@/lib/loan-utils";
+import { calcMonthlyInterest, nextLoanDueDate } from "@/lib/loan-utils";
 
 export type PortalInstallment = {
   number: number;
@@ -26,6 +26,7 @@ export type PortalLoan = {
   remainingBalance: number;
   interestRate: number;
   paymentDay: number;
+  billingStartMonth: string;
   monthlyInterest: number;
   settleTotal: number;
   status: string;
@@ -46,25 +47,6 @@ export type PortalClientData = {
 export type PortalLookupResult =
   | { ok: true; data: PortalClientData }
   | { ok: false; error: string };
-
-function nextLoanDueDate(paymentDay: number, from = new Date()): Date {
-  const year = from.getFullYear();
-  const month = from.getMonth();
-  const todayDay = from.getDate();
-
-  const daysIn = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
-
-  if (todayDay <= paymentDay) {
-    const day = Math.min(paymentDay, daysIn(year, month));
-    return new Date(year, month, day, 12, 0, 0);
-  }
-
-  const nextMonth = month + 1;
-  const y = nextMonth > 11 ? year + 1 : year;
-  const m = nextMonth % 12;
-  const day = Math.min(paymentDay, daysIn(y, m));
-  return new Date(y, m, day, 12, 0, 0);
-}
 
 export async function lookupClientByCpf(cpf: string): Promise<PortalLookupResult> {
   const digits = normalizeCpf(cpf);
@@ -139,6 +121,7 @@ export async function lookupClientByCpf(cpf: string): Promise<PortalLookupResult
         remainingBalance: true,
         interestRate: true,
         paymentDay: true,
+        billingStartMonth: true,
         status: true,
       },
     }),
@@ -195,7 +178,7 @@ export async function lookupClientByCpf(cpf: string): Promise<PortalLookupResult
     const interestRate = Number(loan.interestRate);
     const monthlyInterest = calcMonthlyInterest(remainingBalance, interestRate);
     const settleTotal = remainingBalance + monthlyInterest;
-    const due = nextLoanDueDate(loan.paymentDay);
+    const due = nextLoanDueDate(loan.paymentDay, loan.billingStartMonth);
 
     totalDebt += remainingBalance;
     pendingCount += 1;
@@ -207,6 +190,7 @@ export async function lookupClientByCpf(cpf: string): Promise<PortalLookupResult
       remainingBalance,
       interestRate,
       paymentDay: loan.paymentDay,
+      billingStartMonth: loan.billingStartMonth.toISOString(),
       monthlyInterest,
       settleTotal,
       status: loan.status,

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatCurrency, formatDate, formatCpf } from "@/lib/utils";
+import { formatPaymentSchedule } from "@/lib/loan-utils";
 import { Search } from "lucide-react";
 
 function maskCpf(value: string) {
@@ -77,7 +78,7 @@ function ConsultaResult({ data }: { data: PortalClientData }) {
                     </p>
                     <p className="text-sm text-slate-500">
                       Principal {formatCurrency(loan.principal)} · Juros {loan.interestRate}%
-                      a.m. · Pagamento todo dia {loan.paymentDay}
+                      a.m. · {formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth)}
                     </p>
                   </div>
                   <StatusBadge status={loan.status} />

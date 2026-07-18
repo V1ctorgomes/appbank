@@ -11,10 +11,11 @@ import { LoanPaymentButton } from "@/components/loans/loan-payment-modal";
 import { cancelLoanPayment, deleteLoan } from "@/actions/loans";
 import {
   calcMonthlyInterest,
+  formatPaymentSchedule,
   loanPaymentTypeLabel,
 } from "@/lib/loan-utils";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 
 interface LoanDetailProps {
   loan: {
@@ -23,6 +24,7 @@ interface LoanDetailProps {
     remainingBalance: unknown;
     interestRate: unknown;
     paymentDay: number;
+    billingStartMonth: Date;
     loanDate: Date;
     notes: string | null;
     status: string;
@@ -51,6 +53,7 @@ export function LoanDetail({ loan }: LoanDetailProps) {
   const rate = Number(loan.interestRate);
   const interestDue = calcMonthlyInterest(balance, rate);
   const isActive = loan.status === "ACTIVE";
+  const canEdit = isActive && loan.payments.length === 0;
   const latestPaymentId = loan.payments[0]?.id;
 
   async function handleCancelPayment(paymentId: string) {
@@ -97,6 +100,14 @@ export function LoanDetail({ loan }: LoanDetailProps) {
           Voltar
         </Link>
         <div className="flex gap-2">
+          {canEdit && (
+            <Link href={`/emprestimos/${loan.id}/editar`}>
+              <Button variant="secondary" size="sm">
+                <Pencil className="mr-1 h-4 w-4" />
+                Editar
+              </Button>
+            </Link>
+          )}
           {isActive && (
             <LoanPaymentButton
               loan={{
@@ -105,11 +116,12 @@ export function LoanDetail({ loan }: LoanDetailProps) {
                 remainingBalance: balance,
                 interestRate: rate,
                 paymentDay: loan.paymentDay,
+                billingStartMonth: loan.billingStartMonth,
               }}
               size="sm"
             />
           )}
-          {loan.payments.length === 0 && (
+          {canEdit && (
             <Button variant="danger" size="sm" onClick={handleDelete} disabled={loading}>
               <Trash2 className="mr-1 h-4 w-4" />
               Excluir
@@ -162,10 +174,10 @@ export function LoanDetail({ loan }: LoanDetailProps) {
             </div>
             <div>
               <dt className="text-xs font-medium uppercase text-slate-400">
-                Dia do pagamento
+                Cobrança
               </dt>
               <dd className="mt-1 text-lg font-semibold text-slate-900">
-                Todo dia {loan.paymentDay}
+                {formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth)}
               </dd>
             </div>
             {isActive && (
@@ -213,6 +225,7 @@ export function LoanDetail({ loan }: LoanDetailProps) {
                   remainingBalance: balance,
                   interestRate: rate,
                   paymentDay: loan.paymentDay,
+                  billingStartMonth: loan.billingStartMonth,
                 }}
                 size="md"
               />

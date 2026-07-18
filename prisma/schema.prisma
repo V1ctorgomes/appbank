@@ -221,6 +221,7 @@ model Loan {
   remainingBalance Decimal    @db.Decimal(12, 2)
   interestRate     Decimal    @db.Decimal(7, 2)
   paymentDay       Int
+  billingStartMonth DateTime  @db.Date
   loanDate         DateTime   @db.Date
   notes            String?
   status           LoanStatus @default(ACTIVE)
