@@ -190,3 +190,25 @@ export const paymentSchema = z.object({
 
 export type PaymentInput = z.infer<typeof paymentSchema>;
 
+export const createLoanSchema = z.object({
+  clientId: z.string().min(1, "Cliente é obrigatório"),
+  principal: z.coerce.number().positive("Valor do empréstimo deve ser maior que zero"),
+  interestRate: z.coerce
+    .number()
+    .min(0, "Juros não pode ser negativo")
+    .max(100, "Juros mensal máximo é 100%"),
+  loanDate: z.string().min(1, "Data do empréstimo é obrigatória"),
+  notes: z.string().optional(),
+});
+
+export type CreateLoanInput = z.infer<typeof createLoanSchema>;
+
+export const loanPaymentSchema = z.object({
+  loanId: z.string().min(1, "Empréstimo é obrigatório"),
+  paymentDate: z.string().min(1, "Data do pagamento é obrigatória"),
+  value: z.coerce.number().positive("Valor pago deve ser maior que zero"),
+  notes: z.string().optional(),
+});
+
+export type LoanPaymentInput = z.infer<typeof loanPaymentSchema>;
+

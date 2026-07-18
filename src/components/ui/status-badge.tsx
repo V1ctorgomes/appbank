@@ -3,6 +3,8 @@ const styles: Record<string, string> = {
   PAID: "bg-green-100 text-green-700",
   OVERDUE: "bg-red-100 text-red-700",
   CANCELLED: "bg-slate-100 text-slate-400",
+  ACTIVE: "bg-blue-100 text-blue-700",
+  SETTLED: "bg-green-100 text-green-700",
 };
 
 const labels: Record<string, string> = {
@@ -10,6 +12,8 @@ const labels: Record<string, string> = {
   PAID: "Pago",
   OVERDUE: "Atrasado",
   CANCELLED: "Cancelado",
+  ACTIVE: "Ativo",
+  SETTLED: "Quitado",
 };
 
 export function StatusBadge({ status }: { status: string }) {

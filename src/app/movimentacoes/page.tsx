@@ -132,7 +132,13 @@ export default async function MovimentacoesPage({ searchParams }: PageProps) {
                         {tx.category?.name ?? "—"}
                       </td>
                       <td className="py-3 text-slate-500">
-                        {tx.origin === "INSTALLMENT_PAYMENT" ? "Recebimento" : "Manual"}
+                        {tx.origin === "INSTALLMENT_PAYMENT"
+                          ? "Recebimento"
+                          : tx.origin === "LOAN_PAYMENT"
+                            ? "Empréstimo (entrada)"
+                            : tx.origin === "LOAN_DISBURSEMENT"
+                              ? "Empréstimo (saída)"
+                              : "Manual"}
                       </td>
                       <td
                         className={`py-3 font-medium ${
