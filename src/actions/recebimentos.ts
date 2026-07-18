@@ -9,8 +9,7 @@ import {
   loanDueDateForMonth,
   loanPaymentTypeLabel,
 } from "@/lib/loan-utils";
-
-export type RecebimentoTipo = "todos" | "vendas" | "emprestimos";
+import type { RecebimentoTipo } from "@/lib/recebimentos";
 
 export type PendingRecebimento = {
   kind: "sale" | "loan";
@@ -42,11 +41,6 @@ export type HistoryRecebimento = {
   notes: string | null;
   href: string;
 };
-
-export function parseRecebimentoTipo(tipo?: string): RecebimentoTipo {
-  if (tipo === "vendas" || tipo === "emprestimos") return tipo;
-  return "todos";
-}
 
 export async function getPendingRecebimentos(
   month?: string,

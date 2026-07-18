@@ -10,8 +10,8 @@ import { RecebimentosMonthFilter } from "@/components/payments/recebimentos-mont
 import {
   getPendingRecebimentos,
   getHistoryRecebimentos,
-  parseRecebimentoTipo,
 } from "@/actions/recebimentos";
+import { parseRecebimentoTipo } from "@/lib/recebimentos";
 import { parseMonthFilter } from "@/lib/month-filter";
 import { formatCurrency, formatDate } from "@/lib/utils";
 

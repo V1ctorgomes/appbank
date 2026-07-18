@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, parse } from "date-fns";
 import { cn } from "@/lib/utils";
-import type { RecebimentoTipo } from "@/actions/recebimentos";
+import type { RecebimentoTipo } from "@/lib/recebimentos";
 
 interface RecebimentosMonthFilterProps {
   defaultMonth: string;
