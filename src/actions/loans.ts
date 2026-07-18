@@ -32,6 +32,7 @@ export async function getLoans(page?: string | number) {
       principal: true,
       remainingBalance: true,
       interestRate: true,
+      paymentDay: true,
       loanDate: true,
       status: true,
       client: { select: { id: true, name: true } },
@@ -70,7 +71,8 @@ export async function createLoan(input: CreateLoanInput) {
     return { error: parsed.error.errors[0]?.message ?? "Dados inválidos" };
   }
 
-  const { clientId, principal, interestRate, loanDate, notes } = parsed.data;
+  const { clientId, principal, interestRate, paymentDay, loanDate, notes } =
+    parsed.data;
   const amount = roundMoney(principal);
 
   const client = await prisma.client.findFirst({
@@ -89,6 +91,7 @@ export async function createLoan(input: CreateLoanInput) {
         principal: amount,
         remainingBalance: amount,
         interestRate,
+        paymentDay,
         loanDate: new Date(loanDate + "T12:00:00"),
         notes: notes || null,
         status: "ACTIVE",

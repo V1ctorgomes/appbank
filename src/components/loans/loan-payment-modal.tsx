@@ -17,6 +17,7 @@ export interface LoanPaymentInfo {
   clientName: string;
   remainingBalance: number;
   interestRate: number;
+  paymentDay?: number;
 }
 
 interface LoanPaymentModalProps {
@@ -95,7 +96,7 @@ export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
           </button>
         </div>
 
-        <div className="mb-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm">
+            <div className="mb-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm">
           <div className="flex justify-between">
             <span className="text-slate-500">Saldo da dívida</span>
             <span className="font-medium text-slate-800">
@@ -108,6 +109,12 @@ export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
               {formatCurrency(interestDue)}
             </span>
           </div>
+          {loan.paymentDay != null && (
+            <div className="flex justify-between">
+              <span className="text-slate-500">Dia do pagamento</span>
+              <span className="font-medium text-slate-800">Todo dia {loan.paymentDay}</span>
+            </div>
+          )}
           <div className="flex justify-between border-t border-slate-200 pt-2">
             <span className="text-slate-500">Para quitar</span>
             <span className="font-semibold text-slate-900">

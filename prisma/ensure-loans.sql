@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS "Loan" (
   "principal" DECIMAL(12,2) NOT NULL,
   "remainingBalance" DECIMAL(12,2) NOT NULL,
   "interestRate" DECIMAL(7,2) NOT NULL,
+  "paymentDay" INTEGER NOT NULL DEFAULT 1,
   "loanDate" DATE NOT NULL,
   "notes" TEXT,
   "status" "LoanStatus" NOT NULL DEFAULT 'ACTIVE',
@@ -36,6 +37,8 @@ CREATE TABLE IF NOT EXISTS "Loan" (
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "Loan_pkey" PRIMARY KEY ("id")
 );
+
+ALTER TABLE "Loan" ADD COLUMN IF NOT EXISTS "paymentDay" INTEGER NOT NULL DEFAULT 1;
 
 CREATE TABLE IF NOT EXISTS "LoanPayment" (
   "id" TEXT NOT NULL,

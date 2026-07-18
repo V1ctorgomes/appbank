@@ -26,10 +26,14 @@ export function LoanForm({ clients }: LoanFormProps) {
   const [loanDate, setLoanDate] = useState(new Date().toISOString().slice(0, 10));
   const [principal, setPrincipal] = useState("");
   const [interestRate, setInterestRate] = useState("10");
+  const [paymentDay, setPaymentDay] = useState(
+    String(new Date().getDate())
+  );
   const [notes, setNotes] = useState("");
 
   const principalNum = parseFloat(principal) || 0;
   const rateNum = parseFloat(interestRate) || 0;
+  const paymentDayNum = parseInt(paymentDay, 10) || 1;
 
   const monthlyInterest = useMemo(
     () => calcMonthlyInterest(principalNum, rateNum),
@@ -45,6 +49,7 @@ export function LoanForm({ clients }: LoanFormProps) {
       clientId,
       principal: principalNum,
       interestRate: rateNum,
+      paymentDay: paymentDayNum,
       loanDate,
       notes: notes || undefined,
     });
@@ -90,7 +95,14 @@ export function LoanForm({ clients }: LoanFormProps) {
               label="Data do empréstimo *"
               type="date"
               value={loanDate}
-              onChange={(e) => setLoanDate(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setLoanDate(next);
+                if (next) {
+                  const day = Number(next.slice(8, 10));
+                  if (day >= 1 && day <= 31) setPaymentDay(String(day));
+                }
+              }}
               required
             />
             <Input
@@ -113,6 +125,18 @@ export function LoanForm({ clients }: LoanFormProps) {
               onChange={(e) => setInterestRate(e.target.value)}
               required
             />
+            <Input
+              label="Dia do pagamento *"
+              type="number"
+              min="1"
+              max="31"
+              value={paymentDay}
+              onChange={(e) => setPaymentDay(e.target.value)}
+              required
+            />
+            <p className="-mt-2 text-xs text-slate-500">
+              Dia do mês em que o cliente deve pagar os juros (ex.: 10 = todo dia 10).
+            </p>
             <div className="space-y-1">
               <label htmlFor="loan-notes" className="block text-sm font-medium text-slate-700">
                 Observação
@@ -139,6 +163,10 @@ export function LoanForm({ clients }: LoanFormProps) {
               <div className="flex justify-between">
                 <span className="text-slate-500">Juros do 1º mês</span>
                 <span className="font-medium">{formatCurrency(monthlyInterest)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Dia do pagamento</span>
+                <span className="font-medium">Todo dia {paymentDayNum}</span>
               </div>
               <div className="flex justify-between border-t border-slate-100 pt-2">
                 <span className="text-slate-500">Para quitar no 1º mês</span>

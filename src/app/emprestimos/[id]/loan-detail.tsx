@@ -22,6 +22,7 @@ interface LoanDetailProps {
     principal: unknown;
     remainingBalance: unknown;
     interestRate: unknown;
+    paymentDay: number;
     loanDate: Date;
     notes: string | null;
     status: string;
@@ -103,6 +104,7 @@ export function LoanDetail({ loan }: LoanDetailProps) {
                 clientName: loan.client.name,
                 remainingBalance: balance,
                 interestRate: rate,
+                paymentDay: loan.paymentDay,
               }}
               size="sm"
             />
@@ -158,6 +160,14 @@ export function LoanDetail({ loan }: LoanDetailProps) {
               <dt className="text-xs font-medium uppercase text-slate-400">Juros mensal</dt>
               <dd className="mt-1 text-lg font-semibold text-slate-900">{rate}%</dd>
             </div>
+            <div>
+              <dt className="text-xs font-medium uppercase text-slate-400">
+                Dia do pagamento
+              </dt>
+              <dd className="mt-1 text-lg font-semibold text-slate-900">
+                Todo dia {loan.paymentDay}
+              </dd>
+            </div>
             {isActive && (
               <div>
                 <dt className="text-xs font-medium uppercase text-slate-400">
@@ -202,6 +212,7 @@ export function LoanDetail({ loan }: LoanDetailProps) {
                   clientName: loan.client.name,
                   remainingBalance: balance,
                   interestRate: rate,
+                  paymentDay: loan.paymentDay,
                 }}
                 size="md"
               />

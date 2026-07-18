@@ -52,6 +52,7 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
                   <th className="px-6 py-3 font-medium">Principal</th>
                   <th className="px-6 py-3 font-medium">Saldo</th>
                   <th className="px-6 py-3 font-medium">Juros/mês</th>
+                  <th className="px-6 py-3 font-medium">Dia pgto</th>
                   <th className="px-6 py-3 font-medium">Status</th>
                   <th className="px-6 py-3 font-medium">Ações</th>
                 </tr>
@@ -82,6 +83,9 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
                             ({formatCurrency(interest)})
                           </span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">
+                        Dia {loan.paymentDay}
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={loan.status} />

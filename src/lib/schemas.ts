@@ -197,6 +197,11 @@ export const createLoanSchema = z.object({
     .number()
     .min(0, "Juros não pode ser negativo")
     .max(100, "Juros mensal máximo é 100%"),
+  paymentDay: z.coerce
+    .number()
+    .int("Dia do pagamento deve ser um número inteiro")
+    .min(1, "Dia do pagamento deve ser entre 1 e 31")
+    .max(31, "Dia do pagamento deve ser entre 1 e 31"),
   loanDate: z.string().min(1, "Data do empréstimo é obrigatória"),
   notes: z.string().optional(),
 });
