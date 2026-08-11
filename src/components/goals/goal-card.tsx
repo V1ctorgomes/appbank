@@ -29,6 +29,7 @@ interface GoalCardProps {
     currentCount?: number | null;
     targetDays?: number | null;
     selectedDays?: string | null;
+    startDate?: Date | string | null;
     targetDate?: Date | string | null;
     isCompleted: boolean;
     completedAt?: Date | string | null;
@@ -244,10 +245,16 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
           )}
         </div>
 
-        {goal.targetDate && (
+        {(goal.startDate || goal.targetDate) && (
           <div className="flex items-center gap-1 text-xs text-slate-500">
             <Calendar className="h-3.5 w-3.5 text-slate-400" />
-            <span>Até {formatDate(goal.targetDate)}</span>
+            <span>
+              {goal.startDate && goal.targetDate
+                ? `${formatDate(goal.startDate)} até ${formatDate(goal.targetDate)}`
+                : goal.startDate
+                ? `A partir de ${formatDate(goal.startDate)}`
+                : `Até ${formatDate(goal.targetDate!)}`}
+            </span>
           </div>
         )}
       </div>

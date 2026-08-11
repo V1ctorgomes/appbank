@@ -305,6 +305,7 @@ model Goal {
   currentCount  Int?
   targetDays    Int?
   selectedDays  String?
+  startDate     DateTime? @db.Date
   targetDate    DateTime? @db.Date
   isCompleted   Boolean   @default(false)
   completedAt   DateTime?

@@ -21,6 +21,7 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
   const [targetAmount, setTargetAmount] = useState<string>("");
   const [targetDays, setTargetDays] = useState<string>("7");
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Seg-Sex por padrão
+  const [startDate, setStartDate] = useState<string>("");
   const [targetDate, setTargetDate] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -36,6 +37,8 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
   ];
 
   useEffect(() => {
+    const todayStr = new Date().toISOString().split("T")[0];
+
     if (goalToEdit) {
       setTitle(goalToEdit.title ?? "");
       setDescription(goalToEdit.description ?? "");
@@ -49,6 +52,11 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
       } else {
         setSelectedDays([1, 2, 3, 4, 5]);
       }
+      setStartDate(
+        goalToEdit.startDate
+          ? new Date(goalToEdit.startDate).toISOString().split("T")[0]
+          : todayStr
+      );
       setTargetDate(
         goalToEdit.targetDate
           ? new Date(goalToEdit.targetDate).toISOString().split("T")[0]
@@ -62,6 +70,7 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
       setTargetAmount("5000");
       setTargetDays("7");
       setSelectedDays([1, 2, 3, 4, 5]);
+      setStartDate(todayStr);
       setTargetDate("");
     }
     setError("");
@@ -88,6 +97,7 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
         title,
         description: description || undefined,
         type,
+        startDate: startDate || undefined,
         targetDate: targetDate || undefined,
       };
 
@@ -290,16 +300,28 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
             </div>
           )}
 
-          {/* Data Alvo / Prazo */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Data de Vencimento / Prazo (Opcional)
-            </label>
-            <Input
-              type="date"
-              value={targetDate}
-              onChange={(e) => setTargetDate(e.target.value)}
-            />
+          {/* Datas (Início & Final/Prazo) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Data de Início
+              </label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Data Final / Prazo (Opcional)
+              </label>
+              <Input
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+              />
+            </div>
           </div>
 
           {/* Descrição */}

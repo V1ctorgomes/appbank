@@ -158,6 +158,7 @@ export async function createGoal(input: GoalInput) {
     currentCount,
     targetDays,
     selectedDays,
+    startDate,
     targetDate,
   } = parsed.data;
 
@@ -173,6 +174,7 @@ export async function createGoal(input: GoalInput) {
       currentCount: currentCount !== undefined ? currentCount : null,
       targetDays: targetDays !== undefined ? targetDays : null,
       selectedDays: selectedDays || null,
+      startDate: startDate ? new Date(startDate + "T00:00:00") : new Date(),
       targetDate: targetDate ? new Date(targetDate + "T12:00:00") : null,
     },
   });
@@ -207,6 +209,7 @@ export async function updateGoal(id: string, input: GoalInput) {
     currentCount,
     targetDays,
     selectedDays,
+    startDate,
     targetDate,
   } = parsed.data;
 
@@ -222,6 +225,7 @@ export async function updateGoal(id: string, input: GoalInput) {
       currentCount: currentCount !== undefined ? currentCount : null,
       targetDays: targetDays !== undefined ? targetDays : null,
       selectedDays: selectedDays || null,
+      startDate: startDate ? new Date(startDate + "T00:00:00") : null,
       targetDate: targetDate ? new Date(targetDate + "T12:00:00") : null,
     },
   });

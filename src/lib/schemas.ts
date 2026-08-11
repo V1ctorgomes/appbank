@@ -241,6 +241,7 @@ export const goalSchema = z.object({
   currentCount: z.coerce.number().int().min(0).optional(),
   targetDays: z.coerce.number().int().positive().optional(),
   selectedDays: z.string().optional(),
+  startDate: z.string().optional(),
   targetDate: z.string().optional(),
 });
 
