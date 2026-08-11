@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS "Goal" (
   "targetCount" INTEGER,
   "currentCount" INTEGER,
   "targetDays" INTEGER,
+  "selectedDays" TEXT,
   "targetDate" DATE,
   "isCompleted" BOOLEAN NOT NULL DEFAULT false,
   "completedAt" TIMESTAMP(3),
@@ -124,6 +125,8 @@ CREATE TABLE IF NOT EXISTS "Goal" (
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "Goal_pkey" PRIMARY KEY ("id")
 );
+
+ALTER TABLE "Goal" ADD COLUMN IF NOT EXISTS "selectedDays" TEXT;
 
 CREATE INDEX IF NOT EXISTS "Goal_userId_deletedAt_idx" ON "Goal"("userId", "deletedAt");
 CREATE INDEX IF NOT EXISTS "Goal_type_idx" ON "Goal"("type");

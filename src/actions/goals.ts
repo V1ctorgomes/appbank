@@ -60,17 +60,20 @@ export async function getGoals(filterType?: string) {
 
   const totalLoansBalance = Number(activeLoansSum._sum.remainingBalance ?? 0);
 
-  // Calcula streak de dias sem gastar
-  let daysWithoutExpense = 0;
-  if (latestExpense) {
-    const lastDate = new Date(latestExpense.date);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - lastDate.getTime());
-    daysWithoutExpense = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  } else {
-    // Se nunca teve despesa registrada
-    daysWithoutExpense = 30;
-  }
+  // Busca todas as despesas recentes para cálculo por dias da semana
+  const expenseTransactions = await prisma.transaction.findMany({
+    where: {
+      userId: user.id,
+      type: "EXPENSE",
+      deletedAt: null,
+    },
+    select: { date: true },
+    orderBy: { date: "desc" },
+  });
+
+  const expenseDateStrings = new Set(
+    expenseTransactions.map((t) => new Date(t.date).toISOString().split("T")[0])
+  );
 
   const processedGoals = goals.map((goal) => {
     let currentCount = goal.currentCount ?? 0;
@@ -91,8 +94,36 @@ export async function getGoals(filterType?: string) {
         isAutoCompleted = true;
       }
     } else if (goal.type === "EXPENSE_STREAK") {
-      currentCount = daysWithoutExpense;
-      if (targetDays > 0 && daysWithoutExpense >= targetDays) {
+      if (goal.selectedDays && goal.selectedDays.trim()) {
+        const allowedDays = goal.selectedDays.split(",").map((d) => parseInt(d.trim(), 10));
+        let streak = 0;
+        let checkDate = new Date();
+
+        for (let i = 0; i < 60; i++) {
+          const dayOfWeek = checkDate.getDay();
+          const dateStr = checkDate.toISOString().split("T")[0];
+
+          if (allowedDays.includes(dayOfWeek)) {
+            if (expenseDateStrings.has(dateStr)) {
+              // Se gastou em um dia selecionado, encerra a contagem da sequência
+              break;
+            } else {
+              streak++;
+            }
+          }
+          checkDate.setDate(checkDate.getDate() - 1);
+        }
+        currentCount = streak;
+      } else if (latestExpense) {
+        const lastDate = new Date(latestExpense.date);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - lastDate.getTime());
+        currentCount = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      } else {
+        currentCount = 30;
+      }
+
+      if (targetDays > 0 && currentCount >= targetDays) {
         isAutoCompleted = true;
       }
     }
@@ -126,6 +157,7 @@ export async function createGoal(input: GoalInput) {
     targetCount,
     currentCount,
     targetDays,
+    selectedDays,
     targetDate,
   } = parsed.data;
 
@@ -140,6 +172,7 @@ export async function createGoal(input: GoalInput) {
       targetCount: targetCount !== undefined ? targetCount : null,
       currentCount: currentCount !== undefined ? currentCount : null,
       targetDays: targetDays !== undefined ? targetDays : null,
+      selectedDays: selectedDays || null,
       targetDate: targetDate ? new Date(targetDate + "T12:00:00") : null,
     },
   });
@@ -173,6 +206,7 @@ export async function updateGoal(id: string, input: GoalInput) {
     targetCount,
     currentCount,
     targetDays,
+    selectedDays,
     targetDate,
   } = parsed.data;
 
@@ -187,6 +221,7 @@ export async function updateGoal(id: string, input: GoalInput) {
       targetCount: targetCount !== undefined ? targetCount : null,
       currentCount: currentCount !== undefined ? currentCount : null,
       targetDays: targetDays !== undefined ? targetDays : null,
+      selectedDays: selectedDays || null,
       targetDate: targetDate ? new Date(targetDate + "T12:00:00") : null,
     },
   });

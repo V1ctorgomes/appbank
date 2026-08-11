@@ -20,9 +20,20 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
   const [targetCount, setTargetCount] = useState<string>("10");
   const [targetAmount, setTargetAmount] = useState<string>("");
   const [targetDays, setTargetDays] = useState<string>("7");
+  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Seg-Sex por padrão
   const [targetDate, setTargetDate] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const weekdaysList = [
+    { id: 1, label: "Seg" },
+    { id: 2, label: "Ter" },
+    { id: 3, label: "Qua" },
+    { id: 4, label: "Qui" },
+    { id: 5, label: "Sex" },
+    { id: 6, label: "Sáb" },
+    { id: 0, label: "Dom" },
+  ];
 
   useEffect(() => {
     if (goalToEdit) {
@@ -32,6 +43,12 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
       setTargetCount(goalToEdit.targetCount ? String(goalToEdit.targetCount) : "");
       setTargetAmount(goalToEdit.targetAmount ? String(goalToEdit.targetAmount) : "");
       setTargetDays(goalToEdit.targetDays ? String(goalToEdit.targetDays) : "");
+      if (goalToEdit.selectedDays) {
+        const days = goalToEdit.selectedDays.split(",").map((d: string) => parseInt(d.trim(), 10));
+        setSelectedDays(days.filter((d: number) => !isNaN(d)));
+      } else {
+        setSelectedDays([1, 2, 3, 4, 5]);
+      }
       setTargetDate(
         goalToEdit.targetDate
           ? new Date(goalToEdit.targetDate).toISOString().split("T")[0]
@@ -44,12 +61,22 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
       setTargetCount("10");
       setTargetAmount("5000");
       setTargetDays("7");
+      setSelectedDays([1, 2, 3, 4, 5]);
       setTargetDate("");
     }
     setError("");
   }, [goalToEdit, isOpen]);
 
   if (!isOpen) return null;
+
+  const toggleDay = (dayId: number) => {
+    if (selectedDays.includes(dayId)) {
+      if (selectedDays.length === 1) return; // Mantém pelo menos um dia
+      setSelectedDays(selectedDays.filter((d) => d !== dayId));
+    } else {
+      setSelectedDays([...selectedDays, dayId].sort((a, b) => a - b));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +97,7 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
         payload.targetAmount = targetAmount ? parseFloat(targetAmount) : undefined;
       } else if (type === "EXPENSE_STREAK") {
         payload.targetDays = targetDays ? parseInt(targetDays, 10) : undefined;
+        payload.selectedDays = selectedDays.join(",");
       }
 
       let res;
@@ -192,18 +220,73 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
           )}
 
           {type === "EXPENSE_STREAK" && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Quantidade de Dias sem Gastar *
-              </label>
-              <Input
-                type="number"
-                min="1"
-                required
-                placeholder="Ex: 7"
-                value={targetDays}
-                onChange={(e) => setTargetDays(e.target.value)}
-              />
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Quantidade de Dias sem Gastar *
+                </label>
+                <Input
+                  type="number"
+                  min="1"
+                  required
+                  placeholder="Ex: 7"
+                  value={targetDays}
+                  onChange={(e) => setTargetDays(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Dias da Semana Válidos
+                  </label>
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDays([1, 2, 3, 4, 5])}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Seg-Sex
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDays([0, 6])}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Finais de semana
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDays([0, 1, 2, 3, 4, 5, 6])}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Todos
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {weekdaysList.map((day) => {
+                    const isSelected = selectedDays.includes(day.id);
+                    return (
+                      <button
+                        key={day.id}
+                        type="button"
+                        onClick={() => toggleDay(day.id)}
+                        className={`flex-1 rounded-lg py-2 text-xs font-bold transition-all ${
+                          isSelected
+                            ? "bg-blue-600 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        }`}
+                      >
+                        {day.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 

@@ -28,12 +28,31 @@ interface GoalCardProps {
     targetCount?: number | null;
     currentCount?: number | null;
     targetDays?: number | null;
+    selectedDays?: string | null;
     targetDate?: Date | string | null;
     isCompleted: boolean;
     completedAt?: Date | string | null;
   };
   onEdit: (goal: any) => void;
 }
+
+const formatWeekdays = (selectedDaysStr?: string | null) => {
+  if (!selectedDaysStr) return null;
+  const daysMap: Record<string, string> = {
+    "1": "Seg",
+    "2": "Ter",
+    "3": "Qua",
+    "4": "Qui",
+    "5": "Sex",
+    "6": "Sáb",
+    "0": "Dom",
+  };
+  const parts = selectedDaysStr.split(",").map((s) => s.trim());
+  if (parts.length === 5 && ["1", "2", "3", "4", "5"].every((d) => parts.includes(d))) return "Segunda a Sexta";
+  if (parts.length === 2 && ["0", "6"].every((d) => parts.includes(d))) return "Finais de Semana";
+  if (parts.length === 7) return "Todos os Dias";
+  return parts.map((p) => daysMap[p] ?? p).join(", ");
+};
 
 export function GoalCard({ goal, onEdit }: GoalCardProps) {
   const [isToggling, setIsToggling] = useState(false);
@@ -211,12 +230,19 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
 
       {/* Meta Badge & Prazo */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${typeInfo.badgeColor}`}
-        >
-          <TypeIcon className="h-3.5 w-3.5" />
-          {typeInfo.label}
-        </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${typeInfo.badgeColor}`}
+          >
+            <TypeIcon className="h-3.5 w-3.5" />
+            {typeInfo.label}
+          </span>
+          {goal.type === "EXPENSE_STREAK" && goal.selectedDays && (
+            <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+              📅 {formatWeekdays(goal.selectedDays)}
+            </span>
+          )}
+        </div>
 
         {goal.targetDate && (
           <div className="flex items-center gap-1 text-xs text-slate-500">
