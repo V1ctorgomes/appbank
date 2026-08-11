@@ -243,6 +243,7 @@ export const goalSchema = z.object({
   selectedDays: z.string().optional(),
   startDate: z.string().optional(),
   targetDate: z.string().optional(),
+  checkIns: z.string().optional(),
 });
 
 export type GoalInput = z.infer<typeof goalSchema>;

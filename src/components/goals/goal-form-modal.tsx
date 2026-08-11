@@ -230,11 +230,13 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
             </div>
           )}
 
-          {type === "EXPENSE_STREAK" && (
+          {(type === "EXPENSE_STREAK" || type === "MANUAL_CHECKLIST") && (
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Quantidade de Dias sem Gastar *
+                  {type === "MANUAL_CHECKLIST"
+                    ? "Quantidade Alvo de Check-ins (Dias Concluídos) *"
+                    : "Quantidade de Dias sem Gastar *"}
                 </label>
                 <Input
                   type="number"

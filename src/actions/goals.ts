@@ -133,6 +133,20 @@ export async function getGoals(filterType?: string) {
         if (targetDays > 0 && currentCount >= targetDays) {
           isAutoCompleted = true;
         }
+      } else if (goal.type === "MANUAL_CHECKLIST") {
+        let checkInsMap: Record<string, boolean> = {};
+        try {
+          if (goal.checkIns) {
+            checkInsMap = JSON.parse(goal.checkIns);
+          }
+        } catch (e) {
+          checkInsMap = {};
+        }
+        const successCount = Object.values(checkInsMap).filter(Boolean).length;
+        currentCount = successCount;
+        if (targetDays > 0 && currentCount >= targetDays) {
+          isAutoCompleted = true;
+        }
       }
 
       return {
@@ -149,6 +163,61 @@ export async function getGoals(filterType?: string) {
     console.error("Erro ao buscar metas:", err);
     return [];
   }
+}
+
+export async function toggleGoalDailyCheckin(
+  goalId: string,
+  dateStr: string,
+  targetState?: boolean
+) {
+  const user = await requireAuth();
+
+  const goal = await prisma.goal.findFirst({
+    where: { id: goalId, userId: user.id, deletedAt: null },
+  });
+
+  if (!goal) {
+    return { error: "Meta não encontrada" };
+  }
+
+  let checkInsMap: Record<string, boolean> = {};
+  try {
+    if (goal.checkIns) {
+      checkInsMap = JSON.parse(goal.checkIns);
+    }
+  } catch (e) {
+    checkInsMap = {};
+  }
+
+  if (targetState !== undefined) {
+    checkInsMap[dateStr] = targetState;
+  } else {
+    if (checkInsMap[dateStr] === true) {
+      checkInsMap[dateStr] = false;
+    } else if (checkInsMap[dateStr] === false) {
+      delete checkInsMap[dateStr];
+    } else {
+      checkInsMap[dateStr] = true;
+    }
+  }
+
+  const successCount = Object.values(checkInsMap).filter(Boolean).length;
+  const isCompleted = goal.targetDays ? successCount >= goal.targetDays : goal.isCompleted;
+
+  await prisma.goal.update({
+    where: { id: goalId },
+    data: {
+      checkIns: JSON.stringify(checkInsMap),
+      currentCount: successCount,
+      isCompleted,
+      completedAt: isCompleted && !goal.isCompleted ? new Date() : goal.completedAt,
+    },
+  });
+
+  revalidatePath("/metas");
+  revalidatePath("/dashboard");
+
+  return { success: true, checkIns: checkInsMap, currentCount: successCount, isCompleted };
 }
 
 export async function createGoal(input: GoalInput) {

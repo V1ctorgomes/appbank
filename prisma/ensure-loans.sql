@@ -129,6 +129,7 @@ CREATE TABLE IF NOT EXISTS "Goal" (
 
 ALTER TABLE "Goal" ADD COLUMN IF NOT EXISTS "selectedDays" TEXT;
 ALTER TABLE "Goal" ADD COLUMN IF NOT EXISTS "startDate" DATE;
+ALTER TABLE "Goal" ADD COLUMN IF NOT EXISTS "checkIns" TEXT;
 
 CREATE INDEX IF NOT EXISTS "Goal_userId_deletedAt_idx" ON "Goal"("userId", "deletedAt");
 CREATE INDEX IF NOT EXISTS "Goal_type_idx" ON "Goal"("type");

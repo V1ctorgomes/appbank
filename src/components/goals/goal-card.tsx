@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateForInput } from "@/lib/utils";
 import {
   CheckCircle2,
   Circle,
@@ -14,8 +14,10 @@ import {
   Plane,
   Flame,
   CheckSquare,
+  Check,
+  X as XIcon,
 } from "lucide-react";
-import { toggleGoalCompletion, deleteGoal } from "@/actions/goals";
+import { toggleGoalCompletion, deleteGoal, toggleGoalDailyCheckin } from "@/actions/goals";
 
 interface GoalCardProps {
   goal: {
@@ -31,6 +33,7 @@ interface GoalCardProps {
     selectedDays?: string | null;
     startDate?: Date | string | null;
     targetDate?: Date | string | null;
+    checkIns?: string | null;
     isCompleted: boolean;
     completedAt?: Date | string | null;
   };
@@ -58,6 +61,7 @@ const formatWeekdays = (selectedDaysStr?: string | null) => {
 export function GoalCard({ goal, onEdit }: GoalCardProps) {
   const [isToggling, setIsToggling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
   const handleToggle = async () => {
@@ -79,8 +83,41 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
     }
   };
 
-  const todayStr = new Date().toISOString().split("T")[0];
-  const startDateStr = goal.startDate ? new Date(goal.startDate).toISOString().split("T")[0] : null;
+  const handleCheckin = async (dateStr: string, status?: boolean) => {
+    try {
+      setIsCheckingIn(true);
+      await toggleGoalDailyCheckin(goal.id, dateStr, status);
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  let checkInsMap: Record<string, boolean> = {};
+  try {
+    if (goal.checkIns) {
+      checkInsMap = JSON.parse(goal.checkIns);
+    }
+  } catch (e) {
+    checkInsMap = {};
+  }
+
+  const todayStr = formatDateForInput(new Date());
+
+  const recentDaysList = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = formatDateForInput(d);
+    const weekdaysShort = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    recentDaysList.push({
+      dateStr,
+      weekday: weekdaysShort[d.getDay()],
+      dayNum: d.getDate(),
+    });
+  }
+
+  const todayStrFormatted = formatDate(new Date());
+  const startDateStr = goal.startDate ? formatDateForInput(goal.startDate) : null;
   const isFutureGoal = startDateStr && startDateStr > todayStr;
 
   // Cálculo da porcentagem de progresso
@@ -108,6 +145,10 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
     const cur = goal.currentCount ?? 0;
     percent = Math.min(100, Math.round((cur / goal.targetDays) * 100));
     progressText = `${cur} de ${goal.targetDays} dias sem despesas`;
+  } else if (goal.type === "MANUAL_CHECKLIST" && goal.targetDays) {
+    const cur = goal.currentCount ?? 0;
+    percent = Math.min(100, Math.round((cur / goal.targetDays) * 100));
+    progressText = `${cur} de ${goal.targetDays} dias marcados`;
   } else {
     percent = goal.isCompleted ? 100 : 0;
     progressText = goal.isCompleted ? "Concluída!" : "Pendente";
@@ -267,6 +308,85 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
           </div>
         )}
       </div>
+
+      {/* Daily Check-in UI para MANUAL_CHECKLIST */}
+      {goal.type === "MANUAL_CHECKLIST" && !isFutureGoal && (
+        <div className="mt-4 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <CheckSquare className="h-4 w-4 text-blue-600" />
+              Check-in de Hoje ({todayStrFormatted})
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={isCheckingIn}
+                onClick={() => handleCheckin(todayStr, true)}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  checkInsMap[todayStr] === true
+                    ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300"
+                    : "bg-white text-slate-700 border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300"
+                }`}
+              >
+                <Check className="h-3.5 w-3.5" />
+                Consegui
+              </button>
+              <button
+                type="button"
+                disabled={isCheckingIn}
+                onClick={() => handleCheckin(todayStr, false)}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  checkInsMap[todayStr] === false
+                    ? "bg-rose-600 text-white shadow-sm ring-2 ring-rose-300"
+                    : "bg-white text-slate-700 border border-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300"
+                }`}
+              >
+                <XIcon className="h-3.5 w-3.5" />
+                Não consegui
+              </button>
+            </div>
+          </div>
+
+          {/* Histórico dos últimos 7 dias */}
+          <div className="pt-2 border-t border-slate-200/60">
+            <p className="text-[10px] uppercase font-bold text-slate-600 mb-1.5">Últimos 7 dias:</p>
+            <div className="flex items-center justify-between gap-1">
+              {recentDaysList.map((d) => {
+                const status = checkInsMap[d.dateStr];
+                const isToday = d.dateStr === todayStr;
+                return (
+                  <button
+                    key={d.dateStr}
+                    type="button"
+                    disabled={isCheckingIn}
+                    onClick={() => handleCheckin(d.dateStr)}
+                    className={`flex flex-col items-center justify-center p-1.5 rounded-lg text-[11px] font-medium transition-all flex-1 ${
+                      status === true
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold"
+                        : status === false
+                        ? "bg-rose-100 text-rose-800 border border-rose-300 font-bold"
+                        : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300"
+                    } ${isToday ? "ring-2 ring-blue-500/50" : ""}`}
+                    title={`${d.weekday} (${d.dateStr}): Clique para alterar status`}
+                  >
+                    <span className="text-[10px] text-slate-500">{d.weekday}</span>
+                    <span className="text-xs font-semibold">{d.dayNum}</span>
+                    <span className="mt-0.5">
+                      {status === true ? (
+                        <Check className="h-3 w-3 text-emerald-600" />
+                      ) : status === false ? (
+                        <XIcon className="h-3 w-3 text-rose-600" />
+                      ) : (
+                        <Circle className="h-3 w-3 text-slate-300" />
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Metric Progress */}
       <div className="mt-3">
