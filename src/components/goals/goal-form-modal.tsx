@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { createGoal, updateGoal } from "@/actions/goals";
+import { formatDateForInput } from "@/lib/utils";
 
 interface GoalFormModalProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
   ];
 
   useEffect(() => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = formatDateForInput(new Date());
 
     if (goalToEdit) {
       setTitle(goalToEdit.title ?? "");
@@ -54,12 +55,12 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
       }
       setStartDate(
         goalToEdit.startDate
-          ? new Date(goalToEdit.startDate).toISOString().split("T")[0]
+          ? formatDateForInput(goalToEdit.startDate)
           : todayStr
       );
       setTargetDate(
         goalToEdit.targetDate
-          ? new Date(goalToEdit.targetDate).toISOString().split("T")[0]
+          ? formatDateForInput(goalToEdit.targetDate)
           : ""
       );
     } else {

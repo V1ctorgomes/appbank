@@ -19,17 +19,38 @@ export function formatDate(date: Date | string) {
   if (!date) return "";
   if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
     const [y, m, d] = date.split("-").map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString("pt-BR", {
-      timeZone: APP_TIMEZONE,
-    });
+    return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
   }
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "";
+
+  const iso = d.toISOString();
+  if (iso.endsWith("T00:00:00.000Z")) {
+    const year = d.getUTCFullYear();
+    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    return `${day}/${month}/${year}`;
+  }
+
   return new Intl.DateTimeFormat("pt-BR", {
     timeZone: APP_TIMEZONE,
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   }).format(d);
+}
+
+export function formatDateForInput(dateVal?: Date | string | null): string {
+  if (!dateVal) return "";
+  if (typeof dateVal === "string" && /^\d{4}-\d{2}-\d{2}/.test(dateVal)) {
+    return dateVal.split("T")[0];
+  }
+  const d = typeof dateVal === "string" ? new Date(dateVal) : dateVal;
+  if (isNaN(d.getTime())) return "";
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function formatDateTime(date: Date | string) {

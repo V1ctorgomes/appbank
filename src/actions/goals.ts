@@ -75,8 +75,16 @@ export async function getGoals(filterType?: string) {
     expenseTransactions.map((t) => new Date(t.date).toISOString().split("T")[0])
   );
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const toDateKey = (d: Date | string) => {
+    if (typeof d === "string") return d.split("T")[0];
+    const dateObj = new Date(d);
+    const y = dateObj.getUTCFullYear();
+    const m = String(dateObj.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const todayKey = toDateKey(new Date());
 
   const processedGoals = goals.map((goal) => {
     let currentCount = goal.currentCount ?? 0;
@@ -86,12 +94,8 @@ export async function getGoals(filterType?: string) {
     let targetDays = goal.targetDays ?? 0;
     let isAutoCompleted = goal.isCompleted;
 
-    const goalStartDate = goal.startDate ? new Date(goal.startDate) : null;
-    if (goalStartDate) {
-      goalStartDate.setHours(0, 0, 0, 0);
-    }
-
-    const hasNotStarted = goalStartDate && goalStartDate > today;
+    const startDateKey = goal.startDate ? toDateKey(goal.startDate) : null;
+    const hasNotStarted = startDateKey ? startDateKey > todayKey : false;
 
     if (hasNotStarted) {
       currentCount = 0;
@@ -115,18 +119,17 @@ export async function getGoals(filterType?: string) {
 
       let streak = 0;
       let checkDate = new Date();
-      checkDate.setHours(0, 0, 0, 0);
 
       for (let i = 0; i < 90; i++) {
-        if (goalStartDate && checkDate < goalStartDate) {
+        const checkKey = toDateKey(checkDate);
+        if (startDateKey && checkKey < startDateKey) {
           break; // Interrompe ao alcançar dias anteriores ao início da meta
         }
 
         const dayOfWeek = checkDate.getDay();
-        const dateStr = checkDate.toISOString().split("T")[0];
 
         if (allowedDays.includes(dayOfWeek)) {
-          if (expenseDateStrings.has(dateStr)) {
+          if (expenseDateStrings.has(checkKey)) {
             // Se registrou despesa num dia ativo, quebra o streak
             break;
           } else {
@@ -188,8 +191,8 @@ export async function createGoal(input: GoalInput) {
       currentCount: currentCount !== undefined ? currentCount : null,
       targetDays: targetDays !== undefined ? targetDays : null,
       selectedDays: selectedDays || null,
-      startDate: startDate ? new Date(startDate + "T00:00:00") : new Date(),
-      targetDate: targetDate ? new Date(targetDate + "T12:00:00") : null,
+      startDate: startDate ? new Date(startDate + "T12:00:00Z") : new Date(),
+      targetDate: targetDate ? new Date(targetDate + "T12:00:00Z") : null,
     },
   });
 
@@ -239,8 +242,8 @@ export async function updateGoal(id: string, input: GoalInput) {
       currentCount: currentCount !== undefined ? currentCount : null,
       targetDays: targetDays !== undefined ? targetDays : null,
       selectedDays: selectedDays || null,
-      startDate: startDate ? new Date(startDate + "T00:00:00") : null,
-      targetDate: targetDate ? new Date(targetDate + "T12:00:00") : null,
+      startDate: startDate ? new Date(startDate + "T12:00:00Z") : null,
+      targetDate: targetDate ? new Date(targetDate + "T12:00:00Z") : null,
     },
   });
 

@@ -257,7 +257,9 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
             <Calendar className="h-3.5 w-3.5 text-slate-400" />
             <span>
               {goal.startDate && goal.targetDate
-                ? `${formatDate(goal.startDate)} até ${formatDate(goal.targetDate)}`
+                ? formatDate(goal.startDate) === formatDate(goal.targetDate)
+                  ? `Dia ${formatDate(goal.startDate)}`
+                  : `${formatDate(goal.startDate)} até ${formatDate(goal.targetDate)}`
                 : goal.startDate
                 ? `A partir de ${formatDate(goal.startDate)}`
                 : `Até ${formatDate(goal.targetDate!)}`}
