@@ -98,3 +98,38 @@ DO $$ BEGIN
     FOREIGN KEY ("loanPaymentId") REFERENCES "LoanPayment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+-- Garante tabela do módulo de Metas (idempotente)
+DO $$ BEGIN
+  CREATE TYPE "GoalType" AS ENUM ('LOAN_COUNT', 'LOAN_PORTFOLIO', 'LOAN_MONTHLY_GROWTH', 'SAVINGS_TARGET', 'EXPENSE_STREAK', 'MANUAL_CHECKLIST');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS "Goal" (
+  "id" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  "title" TEXT NOT NULL,
+  "description" TEXT,
+  "type" "GoalType" NOT NULL,
+  "targetAmount" DECIMAL(12,2),
+  "currentAmount" DECIMAL(12,2),
+  "targetCount" INTEGER,
+  "currentCount" INTEGER,
+  "targetDays" INTEGER,
+  "targetDate" DATE,
+  "isCompleted" BOOLEAN NOT NULL DEFAULT false,
+  "completedAt" TIMESTAMP(3),
+  "deletedAt" TIMESTAMP(3),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  CONSTRAINT "Goal_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "Goal_userId_deletedAt_idx" ON "Goal"("userId", "deletedAt");
+CREATE INDEX IF NOT EXISTS "Goal_type_idx" ON "Goal"("type");
+
+DO $$ BEGIN
+  ALTER TABLE "Goal" ADD CONSTRAINT "Goal_userId_fkey"
+    FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

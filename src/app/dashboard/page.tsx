@@ -2,6 +2,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { StatCard, Card } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getDashboardData } from "@/actions/dashboard";
+import { GoalsWidget } from "@/components/dashboard/goals-widget";
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
@@ -41,32 +42,41 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <Card title="Próximos Recebimentos">
-        {data.upcomingPayments.length === 0 ? (
-          <p className="text-sm text-slate-500">Nenhum recebimento previsto nos próximos 30 dias.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-slate-500">
-                  <th className="pb-3 font-medium">Cliente</th>
-                  <th className="pb-3 font-medium">Valor</th>
-                  <th className="pb-3 font-medium">Vencimento</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.upcomingPayments.map((payment) => (
-                  <tr key={payment.id} className="border-b border-slate-100">
-                    <td className="py-3 font-medium text-slate-800">{payment.clientName}</td>
-                    <td className="py-3 text-green-700">{formatCurrency(payment.value)}</td>
-                    <td className="py-3 text-slate-600">{formatDate(payment.dueDate)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <Card title="Próximos Recebimentos">
+            {data.upcomingPayments.length === 0 ? (
+              <p className="text-sm text-slate-500">Nenhum recebimento previsto nos próximos 30 dias.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-slate-500">
+                      <th className="pb-3 font-medium">Cliente</th>
+                      <th className="pb-3 font-medium">Valor</th>
+                      <th className="pb-3 font-medium">Vencimento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.upcomingPayments.map((payment) => (
+                      <tr key={payment.id} className="border-b border-slate-100">
+                        <td className="py-3 font-medium text-slate-800">{payment.clientName}</td>
+                        <td className="py-3 text-green-700">{formatCurrency(payment.value)}</td>
+                        <td className="py-3 text-slate-600">{formatDate(payment.dueDate)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+
+        <div>
+          <GoalsWidget />
+        </div>
+      </div>
     </AppLayout>
   );
 }
+

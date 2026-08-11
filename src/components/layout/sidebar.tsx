@@ -10,6 +10,7 @@ import {
   Banknote,
   ArrowLeftRight,
   BarChart3,
+  Target,
   Settings,
   LogOut,
   Menu,
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/emprestimos", label: "Empréstimos", icon: HandCoins },
   { href: "/recebimentos", label: "Recebimentos", icon: Banknote },
   { href: "/movimentacoes", label: "Movimentações", icon: ArrowLeftRight },
+  { href: "/metas", label: "Metas", icon: Target },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];

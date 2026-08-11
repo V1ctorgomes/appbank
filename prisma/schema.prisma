@@ -26,6 +26,7 @@ model User {
   loans         Loan[]
   transactions  Transaction[]
   categories    Category[]
+  goals         Goal[]
 }
 
 model Account {
@@ -279,4 +280,39 @@ model Category {
 
   @@unique([userId, name, type])
   @@index([userId, deletedAt])
+}
+
+// ─── Metas e Objetivos ───────────────────────────────────────────────────
+
+enum GoalType {
+  LOAN_COUNT
+  LOAN_PORTFOLIO
+  LOAN_MONTHLY_GROWTH
+  SAVINGS_TARGET
+  EXPENSE_STREAK
+  MANUAL_CHECKLIST
+}
+
+model Goal {
+  id            String    @id @default(cuid())
+  userId        String
+  title         String
+  description   String?
+  type          GoalType
+  targetAmount  Decimal?  @db.Decimal(12, 2)
+  currentAmount Decimal?  @db.Decimal(12, 2)
+  targetCount   Int?
+  currentCount  Int?
+  targetDays    Int?
+  targetDate    DateTime? @db.Date
+  isCompleted   Boolean   @default(false)
+  completedAt   DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deletedAt])
+  @@index([type])
 }

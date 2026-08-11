@@ -224,3 +224,24 @@ export const loanPaymentSchema = z.object({
 
 export type LoanPaymentInput = z.infer<typeof loanPaymentSchema>;
 
+export const goalSchema = z.object({
+  title: z.string().min(1, "Título é obrigatório"),
+  description: z.string().optional(),
+  type: z.enum([
+    "LOAN_COUNT",
+    "LOAN_PORTFOLIO",
+    "LOAN_MONTHLY_GROWTH",
+    "SAVINGS_TARGET",
+    "EXPENSE_STREAK",
+    "MANUAL_CHECKLIST",
+  ]),
+  targetAmount: z.coerce.number().positive().optional(),
+  currentAmount: z.coerce.number().min(0).optional(),
+  targetCount: z.coerce.number().int().positive().optional(),
+  currentCount: z.coerce.number().int().min(0).optional(),
+  targetDays: z.coerce.number().int().positive().optional(),
+  targetDate: z.string().optional(),
+});
+
+export type GoalInput = z.infer<typeof goalSchema>;
+
