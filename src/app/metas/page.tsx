@@ -8,10 +8,8 @@ export const metadata = {
 };
 
 export default async function MetasPage() {
-  const [goals, summary] = await Promise.all([
-    getGoals("ALL"),
-    getGoalsSummary(),
-  ]);
+  const goals = await getGoals("ALL");
+  const summary = await getGoalsSummary(goals);
 
   return (
     <AppLayout>
