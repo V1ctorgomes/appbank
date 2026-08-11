@@ -75,6 +75,9 @@ export async function getGoals(filterType?: string) {
     expenseTransactions.map((t) => new Date(t.date).toISOString().split("T")[0])
   );
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const processedGoals = goals.map((goal) => {
     let currentCount = goal.currentCount ?? 0;
     let currentAmount = Number(goal.currentAmount ?? 0);
@@ -83,7 +86,18 @@ export async function getGoals(filterType?: string) {
     let targetDays = goal.targetDays ?? 0;
     let isAutoCompleted = goal.isCompleted;
 
-    if (goal.type === "LOAN_COUNT") {
+    const goalStartDate = goal.startDate ? new Date(goal.startDate) : null;
+    if (goalStartDate) {
+      goalStartDate.setHours(0, 0, 0, 0);
+    }
+
+    const hasNotStarted = goalStartDate && goalStartDate > today;
+
+    if (hasNotStarted) {
+      currentCount = 0;
+      currentAmount = 0;
+      isAutoCompleted = false;
+    } else if (goal.type === "LOAN_COUNT") {
       currentCount = activeLoansCount;
       if (targetCount > 0 && currentCount >= targetCount) {
         isAutoCompleted = true;
@@ -94,35 +108,35 @@ export async function getGoals(filterType?: string) {
         isAutoCompleted = true;
       }
     } else if (goal.type === "EXPENSE_STREAK") {
-      if (goal.selectedDays && goal.selectedDays.trim()) {
-        const allowedDays = goal.selectedDays.split(",").map((d) => parseInt(d.trim(), 10));
-        let streak = 0;
-        let checkDate = new Date();
+      const allowedDays =
+        goal.selectedDays && goal.selectedDays.trim()
+          ? goal.selectedDays.split(",").map((d) => parseInt(d.trim(), 10))
+          : [0, 1, 2, 3, 4, 5, 6];
 
-        for (let i = 0; i < 60; i++) {
-          const dayOfWeek = checkDate.getDay();
-          const dateStr = checkDate.toISOString().split("T")[0];
+      let streak = 0;
+      let checkDate = new Date();
+      checkDate.setHours(0, 0, 0, 0);
 
-          if (allowedDays.includes(dayOfWeek)) {
-            if (expenseDateStrings.has(dateStr)) {
-              // Se gastou em um dia selecionado, encerra a contagem da sequência
-              break;
-            } else {
-              streak++;
-            }
-          }
-          checkDate.setDate(checkDate.getDate() - 1);
+      for (let i = 0; i < 90; i++) {
+        if (goalStartDate && checkDate < goalStartDate) {
+          break; // Interrompe ao alcançar dias anteriores ao início da meta
         }
-        currentCount = streak;
-      } else if (latestExpense) {
-        const lastDate = new Date(latestExpense.date);
-        const now = new Date();
-        const diffTime = Math.abs(now.getTime() - lastDate.getTime());
-        currentCount = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      } else {
-        currentCount = 30;
+
+        const dayOfWeek = checkDate.getDay();
+        const dateStr = checkDate.toISOString().split("T")[0];
+
+        if (allowedDays.includes(dayOfWeek)) {
+          if (expenseDateStrings.has(dateStr)) {
+            // Se registrou despesa num dia ativo, quebra o streak
+            break;
+          } else {
+            streak++;
+          }
+        }
+        checkDate.setDate(checkDate.getDate() - 1);
       }
 
+      currentCount = streak;
       if (targetDays > 0 && currentCount >= targetDays) {
         isAutoCompleted = true;
       }

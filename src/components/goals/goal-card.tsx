@@ -79,12 +79,19 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
     }
   };
 
+  const todayStr = new Date().toISOString().split("T")[0];
+  const startDateStr = goal.startDate ? new Date(goal.startDate).toISOString().split("T")[0] : null;
+  const isFutureGoal = startDateStr && startDateStr > todayStr;
+
   // Cálculo da porcentagem de progresso
   let percent = 0;
   let progressText = "";
 
   if (goal.isCompleted) {
     percent = 100;
+  } else if (isFutureGoal) {
+    percent = 0;
+    progressText = `Inicia em ${formatDate(goal.startDate!)} · ${goal.currentCount ?? 0} de ${goal.targetDays ?? goal.targetCount ?? 0} concluídos`;
   } else if (goal.type === "LOAN_COUNT" && goal.targetCount) {
     const cur = goal.currentCount ?? 0;
     percent = Math.min(100, Math.round((cur / goal.targetCount) * 100));
