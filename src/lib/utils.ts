@@ -13,9 +13,36 @@ export function formatCurrency(value: number | string) {
   }).format(num);
 }
 
+export const APP_TIMEZONE = "America/Fortaleza";
+
 export function formatDate(date: Date | string) {
+  if (!date) return "";
+  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [y, m, d] = date.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("pt-BR", {
+      timeZone: APP_TIMEZONE,
+    });
+  }
   const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat("pt-BR").format(d);
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: APP_TIMEZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(d);
+}
+
+export function formatDateTime(date: Date | string) {
+  if (!date) return "";
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: APP_TIMEZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
 }
 
 export function formatPhone(phone: string) {
