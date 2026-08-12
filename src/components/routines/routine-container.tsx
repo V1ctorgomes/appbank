@@ -8,15 +8,17 @@ import {
   ChevronRight,
   Plus,
   Zap,
-  Coffee,
   CheckCircle2,
   ListTodo,
+  Clock,
+  LayoutGrid,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoutineCard } from "./routine-card";
 import { RoutineFormModal } from "./routine-form-modal";
 import { AdHocLogModal } from "./adhoc-log-modal";
 import { RoutineWeeklyBar } from "./routine-weekly-bar";
+import { RoutineCalendarView } from "./routine-calendar-view";
 
 interface RoutineContainerProps {
   initialData: {
@@ -32,11 +34,12 @@ interface RoutineContainerProps {
 
 export function RoutineContainer({ initialData }: RoutineContainerProps) {
   const [selectedDateStr, setSelectedDateStr] = useState(initialData.dateStr);
-  const [data, setData] = useState(initialData);
+  const [mainView, setMainView] = useState<"AGENDA" | "TIMELINE">("AGENDA");
 
   const [showRoutineModal, setShowRoutineModal] = useState(false);
   const [showAdHocModal, setShowAdHocModal] = useState(false);
   const [routineToEdit, setRoutineToEdit] = useState<any | null>(null);
+  const [initialStartTime, setInitialStartTime] = useState<string | undefined>(undefined);
 
   const todayStr = formatDateForInput(new Date());
   const isToday = selectedDateStr === todayStr;
@@ -65,7 +68,7 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-slate-900">
-                {isToday ? "Rotina de Hoje" : `Rotina de ${formattedSelectedDate()}`}
+                {isToday ? "Rotina & Agenda de Hoje" : `Agenda de ${formattedSelectedDate()}`}
               </h2>
               {isToday && (
                 <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
@@ -74,13 +77,41 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
               )}
             </div>
             <p className="text-xs text-slate-500">
-              Acompanhe horários, descansos e registe imprevistos do dia
+              Acompanhe horários, descansos e registe imprevistos em formato de agenda
             </p>
           </div>
         </div>
 
-        {/* Controls: Date Prev/Next & Actions */}
+        {/* Controls: Date Prev/Next & View Toggles & Actions */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Main View Mode Selector (Agenda vs Timeline List) */}
+          <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 mr-2">
+            <button
+              type="button"
+              onClick={() => setMainView("AGENDA")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                mainView === "AGENDA"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Visão de Agenda
+            </button>
+            <button
+              type="button"
+              onClick={() => setMainView("TIMELINE")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                mainView === "TIMELINE"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Visão em Lista
+            </button>
+          </div>
+
           {/* Day Navigator */}
           <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
             <button
@@ -120,6 +151,7 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
           <Button
             onClick={() => {
               setRoutineToEdit(null);
+              setInitialStartTime(undefined);
               setShowRoutineModal(true);
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -160,43 +192,59 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
         onSelectDate={(date) => setSelectedDateStr(date)}
       />
 
-      {/* Timeline List */}
-      {initialData.items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-12 px-4 text-center">
-          <div className="rounded-full bg-blue-50 p-4 text-blue-600 mb-3">
-            <ListTodo className="h-8 w-8" />
-          </div>
-          <h3 className="text-base font-bold text-slate-900">Nenhuma atividade agendada</h3>
-          <p className="mt-1 text-xs text-slate-500 max-w-md mb-6">
-            Você não tem rotinas cadastradas para este dia da semana. Cadastre suas rotinas recorrentes
-            ou registre um imprevisto pontual.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button
-              onClick={() => {
-                setRoutineToEdit(null);
-                setShowRoutineModal(true);
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Cadastrar Primeira Rotina
-            </Button>
-          </div>
-        </div>
+      {/* VISÃO PRINCIPAL: AGENDA OU LISTA */}
+      {mainView === "AGENDA" ? (
+        <RoutineCalendarView
+          selectedDateStr={selectedDateStr}
+          items={initialData.items}
+          onSelectDate={(dateStr) => setSelectedDateStr(dateStr)}
+          onAddRoutineWithTime={(timeStr) => {
+            setRoutineToEdit(null);
+            setInitialStartTime(timeStr);
+            setShowRoutineModal(true);
+          }}
+        />
       ) : (
+        /* VISÃO LISTA / TIMELINE */
         <div className="space-y-3">
-          {initialData.items.map((item) => (
-            <RoutineCard
-              key={item.id}
-              item={item}
-              dateStr={selectedDateStr}
-              onEdit={(routine) => {
-                setRoutineToEdit(routine);
-                setShowRoutineModal(true);
-              }}
-            />
-          ))}
+          {initialData.items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-12 px-4 text-center">
+              <div className="rounded-full bg-blue-50 p-4 text-blue-600 mb-3">
+                <ListTodo className="h-8 w-8" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">Nenhuma atividade agendada</h3>
+              <p className="mt-1 text-xs text-slate-500 max-w-md mb-6">
+                Você não tem rotinas cadastradas para este dia da semana. Cadastre suas rotinas recorrentes
+                ou registre um imprevisto pontual.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Button
+                  onClick={() => {
+                    setRoutineToEdit(null);
+                    setInitialStartTime(undefined);
+                    setShowRoutineModal(true);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Cadastrar Primeira Rotina
+                </Button>
+              </div>
+            </div>
+          ) : (
+            initialData.items.map((item) => (
+              <RoutineCard
+                key={item.id}
+                item={item}
+                dateStr={selectedDateStr}
+                onEdit={(routine) => {
+                  setRoutineToEdit(routine);
+                  setInitialStartTime(undefined);
+                  setShowRoutineModal(true);
+                }}
+              />
+            ))
+          )}
         </div>
       )}
 
@@ -204,9 +252,11 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
       {showRoutineModal && (
         <RoutineFormModal
           routineToEdit={routineToEdit}
+          initialStartTime={initialStartTime}
           onClose={() => {
             setShowRoutineModal(false);
             setRoutineToEdit(null);
+            setInitialStartTime(undefined);
           }}
         />
       )}

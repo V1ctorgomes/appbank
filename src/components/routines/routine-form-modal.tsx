@@ -9,6 +9,7 @@ import { createRoutine, updateRoutine } from "@/actions/routines";
 
 interface RoutineFormModalProps {
   routineToEdit?: any;
+  initialStartTime?: string;
   onClose: () => void;
 }
 
@@ -24,7 +25,7 @@ const WEEKDAYS = [
   { id: 0, label: "Dom" },
 ];
 
-export function RoutineFormModal({ routineToEdit, onClose }: RoutineFormModalProps) {
+export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: RoutineFormModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +36,7 @@ export function RoutineFormModal({ routineToEdit, onClose }: RoutineFormModalPro
     routineToEdit?.type || "ACTIVITY"
   );
   const [period, setPeriod] = useState(routineToEdit?.period || "ANYTIME");
-  const [startTime, setStartTime] = useState(routineToEdit?.startTime || "");
+  const [startTime, setStartTime] = useState(routineToEdit?.startTime || initialStartTime || "");
   const [endTime, setEndTime] = useState(routineToEdit?.endTime || "");
 
   const [selectedDays, setSelectedDays] = useState<number[]>(() => {
