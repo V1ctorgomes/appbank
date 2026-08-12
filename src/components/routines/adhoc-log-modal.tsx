@@ -8,10 +8,11 @@ import { createAdHocRoutineLog } from "@/actions/routines";
 
 interface AdHocLogModalProps {
   dateStr: string;
+  onSuccess?: () => void;
   onClose: () => void;
 }
 
-export function AdHocLogModal({ dateStr, onClose }: AdHocLogModalProps) {
+export function AdHocLogModal({ dateStr, onSuccess, onClose }: AdHocLogModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +43,7 @@ export function AdHocLogModal({ dateStr, onClose }: AdHocLogModalProps) {
       if ((res as any)?.error) {
         setError((res as any).error);
       } else {
+        if (onSuccess) onSuccess();
         onClose();
       }
     } catch (err: any) {

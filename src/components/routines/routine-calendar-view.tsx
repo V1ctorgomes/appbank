@@ -14,12 +14,15 @@ import {
 } from "lucide-react";
 import { formatDateForInput, formatDate } from "@/lib/utils";
 import { RoutineIcon } from "./routine-icon";
+import { toggleRoutineLog } from "@/actions/routines";
 
 interface RoutineCalendarViewProps {
   selectedDateStr: string;
   items: any[];
   onSelectDate: (dateStr: string) => void;
   onAddRoutineWithTime?: (startTime: string) => void;
+  onEditRoutine?: (item: any) => void;
+  onRefresh?: () => void;
 }
 
 const HOURS = Array.from({ length: 18 }, (_, i) => {
@@ -50,6 +53,8 @@ export function RoutineCalendarView({
   items,
   onSelectDate,
   onAddRoutineWithTime,
+  onEditRoutine,
+  onRefresh,
 }: RoutineCalendarViewProps) {
   const [viewMode, setViewMode] = useState<"TIMETABLE" | "MONTH">("TIMETABLE");
 
@@ -303,7 +308,11 @@ export function RoutineCalendarView({
                             top: `${topPx}px`,
                             height: `${heightPx}px`,
                           }}
-                          className={`absolute left-0.5 right-0.5 z-10 rounded-lg p-2 text-xs font-semibold border flex flex-col justify-between shadow-sm transition-all overflow-hidden ${
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onEditRoutine) onEditRoutine(item);
+                          }}
+                          className={`absolute left-0.5 right-0.5 z-10 rounded-lg p-2 text-xs font-semibold border flex flex-col justify-between shadow-sm transition-all overflow-hidden cursor-pointer ${
                             isCompleted
                               ? "bg-emerald-100 text-emerald-950 border-emerald-300 line-through opacity-85"
                               : isBreak
@@ -315,12 +324,26 @@ export function RoutineCalendarView({
                         >
                           <div className="flex items-start justify-between gap-1">
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <RoutineIcon
-                                name={item.icon}
-                                type={item.type}
-                                isAdHoc={item.isAdHoc}
-                                className="h-3.5 w-3.5 flex-shrink-0"
-                              />
+                              <button
+                                type="button"
+                                title={isCompleted ? "Marcar como pendente" : "Marcar como concluída"}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (item.routineId) {
+                                    const nextStatus = isCompleted ? "PENDING" : "COMPLETED";
+                                    await toggleRoutineLog(item.routineId, d.dateStr, nextStatus);
+                                    if (onRefresh) onRefresh();
+                                  }
+                                }}
+                                className="rounded p-0.5 hover:bg-black/10 transition-colors"
+                              >
+                                <RoutineIcon
+                                  name={item.icon}
+                                  type={item.type}
+                                  isAdHoc={item.isAdHoc}
+                                  className="h-3.5 w-3.5 flex-shrink-0"
+                                />
+                              </button>
                               <span className="font-bold truncate text-xs leading-tight">
                                 {item.title}
                               </span>

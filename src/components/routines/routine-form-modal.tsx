@@ -11,6 +11,7 @@ import { ICON_OPTIONS, RoutineIcon } from "./routine-icon";
 interface RoutineFormModalProps {
   routineToEdit?: any;
   initialStartTime?: string;
+  onSuccess?: () => void;
   onClose: () => void;
 }
 
@@ -24,7 +25,7 @@ const WEEKDAYS = [
   { id: 0, label: "Dom" },
 ];
 
-export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: RoutineFormModalProps) {
+export function RoutineFormModal({ routineToEdit, initialStartTime, onSuccess, onClose }: RoutineFormModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,6 +100,7 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
       if ((res as any)?.error) {
         setError((res as any).error);
       } else {
+        if (onSuccess) onSuccess();
         onClose();
       }
     } catch (err: any) {

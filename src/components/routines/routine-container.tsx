@@ -227,6 +227,12 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
             setInitialStartTime(timeStr);
             setShowRoutineModal(true);
           }}
+          onEditRoutine={(routine) => {
+            setRoutineToEdit(routine);
+            setInitialStartTime(undefined);
+            setShowRoutineModal(true);
+          }}
+          onRefresh={handleRefresh}
         />
       ) : (
         /* VISÃO LISTA / TIMELINE */
@@ -266,6 +272,7 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
                   setInitialStartTime(undefined);
                   setShowRoutineModal(true);
                 }}
+                onRefresh={handleRefresh}
               />
             ))
           )}
@@ -277,6 +284,7 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
         <RoutineFormModal
           routineToEdit={routineToEdit}
           initialStartTime={initialStartTime}
+          onSuccess={handleRefresh}
           onClose={() => {
             setShowRoutineModal(false);
             setRoutineToEdit(null);
@@ -288,6 +296,7 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
       {showAdHocModal && (
         <AdHocLogModal
           dateStr={selectedDateStr}
+          onSuccess={handleRefresh}
           onClose={() => setShowAdHocModal(false)}
         />
       )}

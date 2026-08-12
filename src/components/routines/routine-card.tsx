@@ -38,10 +38,12 @@ interface RoutineCardProps {
   };
   dateStr: string;
   onEdit?: (item: any) => void;
+  onRefresh?: () => void;
 }
 
-export function RoutineCard({ item, dateStr, onEdit }: RoutineCardProps) {
+export function RoutineCard({ item, dateStr, onEdit, onRefresh }: RoutineCardProps) {
   const [isUpdating, setIsUpdating] = useState(false);
+  const [status, setStatus] = useState(item.status);
   const [showMenu, setShowMenu] = useState(false);
   const [showNotesInput, setShowNotesInput] = useState(false);
   const [notesText, setNotesText] = useState(item.notes || "");
@@ -50,13 +52,24 @@ export function RoutineCard({ item, dateStr, onEdit }: RoutineCardProps) {
     try {
       setIsUpdating(true);
       if (item.isAdHoc && targetStatus === "DELETE") {
-        if (item.logId) await deleteRoutineLog(item.logId);
+        if (item.logId) {
+          await deleteRoutineLog(item.logId);
+          if (onRefresh) onRefresh();
+        }
         return;
       }
 
+      // Optimistic status toggle
+      const nextStatus = targetStatus ?? (status === "COMPLETED" ? "PENDING" : "COMPLETED");
+      setStatus(nextStatus);
+
       if (item.routineId) {
         await toggleRoutineLog(item.routineId, dateStr, targetStatus, notesText || undefined);
+        if (onRefresh) onRefresh();
       }
+    } catch (err) {
+      // Revert if error
+      setStatus(item.status);
     } finally {
       setIsUpdating(false);
     }
@@ -66,18 +79,20 @@ export function RoutineCard({ item, dateStr, onEdit }: RoutineCardProps) {
     if (item.isAdHoc) {
       if (item.logId && confirm("Excluir este imprevisto registrado?")) {
         await deleteRoutineLog(item.logId);
+        if (onRefresh) onRefresh();
       }
       return;
     }
 
     if (item.routineId && confirm(`Excluir a rotina "${item.title}"?`)) {
       await deleteRoutine(item.routineId);
+      if (onRefresh) onRefresh();
     }
   };
 
-  const isCompleted = item.status === "COMPLETED";
-  const isFailed = item.status === "FAILED";
-  const isUnexpected = item.status === "UNEXPECTED_EVENT" || item.isAdHoc;
+  const isCompleted = status === "COMPLETED";
+  const isFailed = status === "FAILED";
+  const isUnexpected = status === "UNEXPECTED_EVENT" || item.isAdHoc;
   const isBreak = item.type === "BREAK_REST";
 
   return (
