@@ -106,7 +106,7 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
         payload.targetCount = targetCount ? parseInt(targetCount, 10) : undefined;
       } else if (type === "LOAN_PORTFOLIO" || type === "SAVINGS_TARGET") {
         payload.targetAmount = targetAmount ? parseFloat(targetAmount) : undefined;
-      } else if (type === "EXPENSE_STREAK") {
+      } else if (type === "EXPENSE_STREAK" || type === "MANUAL_CHECKLIST") {
         payload.targetDays = targetDays ? parseInt(targetDays, 10) : undefined;
         payload.selectedDays = selectedDays.join(",");
       }
@@ -230,17 +230,19 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
             </div>
           )}
 
-          {type === "EXPENSE_STREAK" && (
+          {(type === "EXPENSE_STREAK" || type === "MANUAL_CHECKLIST") && (
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Quantidade de Dias sem Gastar *
+                  {type === "MANUAL_CHECKLIST"
+                    ? "Meta de Dias a Concluir (Alvo)"
+                    : "Quantidade de Dias sem Gastar *"}
                 </label>
                 <Input
                   type="number"
                   min="1"
-                  required
-                  placeholder="Ex: 7"
+                  required={type === "EXPENSE_STREAK"}
+                  placeholder={type === "MANUAL_CHECKLIST" ? "Ex: 30 (opcional)" : "Ex: 7"}
                   value={targetDays}
                   onChange={(e) => setTargetDays(e.target.value)}
                 />
