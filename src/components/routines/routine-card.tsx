@@ -14,6 +14,7 @@ import {
   AlertCircle,
   XCircle,
   CalendarDays,
+  Moon,
 } from "lucide-react";
 import { toggleRoutineLog, deleteRoutine, deleteRoutineLog } from "@/actions/routines";
 import { RoutineIcon } from "./routine-icon";
@@ -168,13 +169,31 @@ export function RoutineCard({ item, dateStr, onEdit, onRefresh }: RoutineCardPro
               )}
 
               {/* Time slot Badge */}
-              {(item.startTime || item.endTime) && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                  <Clock className="h-3 w-3 text-slate-400" />
-                  {item.startTime}
-                  {item.endTime ? ` às ${item.endTime}` : ""}
-                </span>
-              )}
+              {(item.startTime || item.endTime) && (() => {
+                const isOvernight = (() => {
+                  if (!item.startTime || !item.endTime) return false;
+                  const [h1, m1] = item.startTime.split(":").map(Number);
+                  const [h2, m2] = item.endTime.split(":").map(Number);
+                  return (h2 * 60 + m2) <= (h1 * 60 + m1);
+                })();
+
+                if (isOvernight) {
+                  return (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-200 shadow-2xs">
+                      <Moon className="h-3 w-3 text-indigo-600" />
+                      {item.startTime} às {item.endTime} (+1 dia)
+                    </span>
+                  );
+                }
+
+                return (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                    <Clock className="h-3 w-3 text-slate-400" />
+                    {item.startTime}
+                    {item.endTime ? ` às ${item.endTime}` : ""}
+                  </span>
+                );
+              })()}
             </div>
 
             {item.description && (

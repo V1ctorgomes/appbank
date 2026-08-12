@@ -11,6 +11,7 @@ import {
   Zap,
   CheckCircle2,
   Plus,
+  Moon,
 } from "lucide-react";
 import { formatDateForInput, formatDate } from "@/lib/utils";
 import { RoutineIcon } from "./routine-icon";
@@ -39,8 +40,10 @@ function formatDuration(startTime?: string | null, endTime?: string | null) {
   if (!startTime || !endTime) return null;
   const [h1, m1] = startTime.split(":").map(Number);
   const [h2, m2] = endTime.split(":").map(Number);
-  const totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
-  if (totalMins <= 0) return null;
+  let totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
+  if (totalMins <= 0) {
+    totalMins += 24 * 60; // Atravessa a meia-noite (pernoite)
+  }
   const h = Math.floor(totalMins / 60);
   const m = totalMins % 60;
   if (h > 0 && m > 0) return `${h}h ${m}m`;
@@ -177,7 +180,7 @@ export function RoutineCalendarView({
         </div>
       </div>
 
-      {/* VISÃO 1: AGENDA SEMANAL POR HORÁRIOS (ESTILO GOOGLE CALENDAR) */}
+      {/* VISÃO 1: AGENDA SEMANAL POR HORÁRIOS */}
       {viewMode === "TIMETABLE" && (
         <div className="space-y-3">
           {/* Cabeçalho com os 7 dias da semana */}
@@ -274,6 +277,55 @@ export function RoutineCalendarView({
                       </div>
                     ))}
 
+                    {/* Blocos de continuação matutina para tarefas pernoite (ex: 23:00 às 06:00/07:00) */}
+                    {d.isSelected &&
+                      items
+                        .filter((item) => {
+                          if (!item.startTime || !item.endTime) return false;
+                          const [h1] = item.startTime.split(":").map(Number);
+                          const [h2] = item.endTime.split(":").map(Number);
+                          return h2 <= h1 && h2 > 6;
+                        })
+                        .map((item) => {
+                          const [h2Str, m2Str] = item.endTime.split(":");
+                          const h2 = parseInt(h2Str, 10);
+                          const m2 = parseInt(m2Str || "0", 10);
+                          const durationMins = Math.max(30, (h2 - 6) * 60 + m2);
+                          const heightPx = (durationMins / 60) * 56;
+                          const isCompleted = item.status === "COMPLETED";
+
+                          return (
+                            <div
+                              key={`cont-${item.id}`}
+                              style={{
+                                top: "0px",
+                                height: `${heightPx}px`,
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onEditRoutine) onEditRoutine(item);
+                              }}
+                              className={`absolute left-0.5 right-0.5 z-10 rounded-lg p-2 text-xs font-semibold border flex flex-col justify-between shadow-sm transition-all overflow-hidden cursor-pointer ${
+                                isCompleted
+                                  ? "bg-emerald-100 text-emerald-950 border-emerald-300 line-through opacity-85"
+                                  : "bg-indigo-900 text-indigo-100 border-indigo-700 shadow-md ring-1 ring-indigo-500/60"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <div className="flex items-center gap-1 min-w-0">
+                                  <Moon className="h-3.5 w-3.5 text-indigo-300 flex-shrink-0" />
+                                  <span className="font-bold truncate text-[11px] leading-tight">
+                                    ☀️ (Cont. Noturna) {item.title}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] opacity-85 font-mono mt-auto">
+                                <span>Até as {item.endTime}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+
                     {/* Blocos de tarefas posicionados absolutamente conforme inicio e fim */}
                     {dayItems.map((item) => {
                       const [h1Str, m1Str] = item.startTime.split(":");
@@ -288,13 +340,27 @@ export function RoutineCalendarView({
                         m2 = parseInt(m2Str || "0", 10);
                       }
 
-                      // Calcula posições em pixels (56px por hora = 0.933px por min)
-                      const startMins = Math.max(0, (h1 - 6) * 60 + m1);
-                      const endMins = Math.max(startMins + 30, (h2 - 6) * 60 + m2);
-                      const durationMins = endMins - startMins;
+                      const isOvernight = item.endTime ? (h2 * 60 + m2) <= (h1 * 60 + m1) : false;
 
-                      const topPx = (startMins / 60) * 56;
-                      const heightPx = Math.max(36, (durationMins / 60) * 56);
+                      let topPx = 0;
+                      let heightPx = 36;
+
+                      if (isOvernight) {
+                        // Do início (ex: 23:00) até 24:00 (final da grade do dia)
+                        const startMins = Math.max(0, (h1 - 6) * 60 + m1);
+                        const endMins = (24 - 6) * 60; // 24:00 (meia-noite)
+                        const durationMins = Math.max(30, endMins - startMins);
+
+                        topPx = (startMins / 60) * 56;
+                        heightPx = (durationMins / 60) * 56;
+                      } else {
+                        const startMins = Math.max(0, (h1 - 6) * 60 + m1);
+                        const endMins = Math.max(startMins + 30, (h2 - 6) * 60 + m2);
+                        const durationMins = endMins - startMins;
+
+                        topPx = (startMins / 60) * 56;
+                        heightPx = Math.max(36, (durationMins / 60) * 56);
+                      }
 
                       const isCompleted = item.status === "COMPLETED";
                       const isBreak = item.type === "BREAK_REST";
@@ -315,6 +381,8 @@ export function RoutineCalendarView({
                           className={`absolute left-0.5 right-0.5 z-10 rounded-lg p-2 text-xs font-semibold border flex flex-col justify-between shadow-sm transition-all overflow-hidden cursor-pointer ${
                             isCompleted
                               ? "bg-emerald-100 text-emerald-950 border-emerald-300 line-through opacity-85"
+                              : isOvernight
+                              ? "bg-indigo-950 text-indigo-100 border-indigo-700 shadow-md ring-1 ring-indigo-500/60 hover:bg-indigo-900"
                               : isBreak
                               ? "bg-amber-100 text-amber-950 border-amber-300 ring-1 ring-amber-300/50"
                               : isUnexpected
@@ -337,19 +405,29 @@ export function RoutineCalendarView({
                                 }}
                                 className="rounded p-0.5 hover:bg-black/10 transition-colors"
                               >
-                                <RoutineIcon
-                                  name={item.icon}
-                                  type={item.type}
-                                  isAdHoc={item.isAdHoc}
-                                  className="h-3.5 w-3.5 flex-shrink-0"
-                                />
+                                {isOvernight ? (
+                                  <Moon className="h-3.5 w-3.5 text-indigo-300 flex-shrink-0" />
+                                ) : (
+                                  <RoutineIcon
+                                    name={item.icon}
+                                    type={item.type}
+                                    isAdHoc={item.isAdHoc}
+                                    className="h-3.5 w-3.5 flex-shrink-0"
+                                  />
+                                )}
                               </button>
                               <span className="font-bold truncate text-xs leading-tight">
                                 {item.title}
                               </span>
                             </div>
                             {durationText && (
-                              <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-black/10 flex-shrink-0">
+                              <span
+                                className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                                  isOvernight
+                                    ? "bg-indigo-800 text-indigo-100"
+                                    : "bg-black/10"
+                                }`}
+                              >
                                 {durationText}
                               </span>
                             )}
@@ -357,7 +435,9 @@ export function RoutineCalendarView({
 
                           <div className="flex items-center justify-between text-[10px] opacity-85 font-mono mt-auto pt-1">
                             <span>
+                              {isOvernight ? "🌙 " : ""}
                               {item.startTime} {item.endTime ? `➔ ${item.endTime}` : ""}
+                              {isOvernight ? " (+1d)" : ""}
                             </span>
                           </div>
                         </div>
