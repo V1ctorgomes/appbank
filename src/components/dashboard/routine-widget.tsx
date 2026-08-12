@@ -5,7 +5,12 @@ import { getRoutinesForDate } from "@/actions/routines";
 import { RoutineIcon } from "@/components/routines/routine-icon";
 
 export async function RoutineWidget() {
-  const routineData = await getRoutinesForDate();
+  let routineData = { summary: { total: 0, completed: 0, percentage: 0 }, items: [] };
+  try {
+    routineData = await getRoutinesForDate();
+  } catch (err) {
+    console.error("Erro no RoutineWidget:", err);
+  }
   const { summary, items } = routineData;
 
   if (summary.total === 0) {

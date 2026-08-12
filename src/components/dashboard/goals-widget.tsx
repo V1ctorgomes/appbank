@@ -5,7 +5,12 @@ import { getGoalsSummary } from "@/actions/goals";
 import { Target, ArrowRight, CheckCircle2 } from "lucide-react";
 
 export async function GoalsWidget() {
-  const summary = await getGoalsSummary();
+  let summary: any = { total: 0, completed: 0, inProgress: 0, averageProgress: 0, recentGoals: [] };
+  try {
+    summary = await getGoalsSummary();
+  } catch (err) {
+    console.error("Erro no GoalsWidget:", err);
+  }
 
   if (summary.total === 0) {
     return (
@@ -45,7 +50,7 @@ export async function GoalsWidget() {
       </div>
 
       <div className="space-y-4">
-        {summary.recentGoals.map((goal) => {
+        {summary.recentGoals.map((goal: any) => {
           let percent = 0;
           let text = "";
 

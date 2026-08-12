@@ -8,10 +8,16 @@ export const metadata = {
 };
 
 export default async function MetasPage() {
-  const [goals, summary] = await Promise.all([
-    getGoals("ALL"),
-    getGoalsSummary(),
-  ]);
+  let goals: any[] = [];
+  let summary = { total: 0, completed: 0, inProgress: 0, averageProgress: 0 };
+
+  try {
+    const res = await Promise.all([getGoals("ALL"), getGoalsSummary()]);
+    goals = res[0] || [];
+    summary = res[1] || summary;
+  } catch (err) {
+    console.error("Erro ao carregar metas no servidor:", err);
+  }
 
   return (
     <AppLayout>

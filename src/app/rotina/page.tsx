@@ -8,7 +8,17 @@ export const metadata = {
 };
 
 export default async function RotinaPage() {
-  const initialData = await getRoutinesForDate();
+  let initialData = {
+    dateStr: new Date().toISOString().split("T")[0],
+    items: [],
+    summary: { total: 0, completed: 0, percentage: 0 },
+  };
+
+  try {
+    initialData = await getRoutinesForDate();
+  } catch (err) {
+    console.error("Erro ao carregar dados de rotina no servidor:", err);
+  }
 
   return (
     <AppLayout>

@@ -6,7 +6,20 @@ import { GoalsWidget } from "@/components/dashboard/goals-widget";
 import { RoutineWidget } from "@/components/dashboard/routine-widget";
 
 export default async function DashboardPage() {
-  const data = await getDashboardData();
+  let data: any = {
+    balance: 0,
+    monthIncome: 0,
+    monthExpense: 0,
+    totalReceivable: 0,
+    overdueCount: 0,
+    upcomingPayments: [],
+  };
+
+  try {
+    data = await getDashboardData();
+  } catch (err) {
+    console.error("Erro ao carregar dados do dashboard:", err);
+  }
 
   return (
     <AppLayout>
@@ -59,7 +72,7 @@ export default async function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.upcomingPayments.map((payment) => (
+                    {data.upcomingPayments.map((payment: any) => (
                       <tr key={payment.id} className="border-b border-slate-100">
                         <td className="py-3 font-medium text-slate-800">{payment.clientName}</td>
                         <td className="py-3 text-green-700">{formatCurrency(payment.value)}</td>
