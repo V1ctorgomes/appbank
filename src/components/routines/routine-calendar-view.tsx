@@ -277,21 +277,24 @@ export function RoutineCalendarView({
                       </div>
                     ))}
 
-                    {/* Blocos de continuação matutina para tarefas pernoite (ex: 23:00 às 06:00/07:00) */}
+                    {/* Blocos de continuação matutina para tarefas pernoite (ex: 23:00 às 06:30) */}
                     {d.isSelected &&
                       items
                         .filter((item) => {
+                          if (item.isOvernightContinuation) return true;
                           if (!item.startTime || !item.endTime) return false;
-                          const [h1] = item.startTime.split(":").map(Number);
-                          const [h2] = item.endTime.split(":").map(Number);
-                          return h2 <= h1 && h2 > 6;
+                          const [h1, m1] = item.startTime.split(":").map(Number);
+                          const [h2, m2] = item.endTime.split(":").map(Number);
+                          const isOvernight = (h2 * 60 + m2) <= (h1 * 60 + m1);
+                          const endsAfterSixAM = (h2 * 60 + m2) > (6 * 60);
+                          return isOvernight && endsAfterSixAM;
                         })
                         .map((item) => {
                           const [h2Str, m2Str] = item.endTime.split(":");
                           const h2 = parseInt(h2Str, 10);
                           const m2 = parseInt(m2Str || "0", 10);
-                          const durationMins = Math.max(30, (h2 - 6) * 60 + m2);
-                          const heightPx = (durationMins / 60) * 56;
+                          const endMinsFromSix = (h2 - 6) * 60 + m2;
+                          const heightPx = Math.max(16, (endMinsFromSix / 60) * 56);
                           const isCompleted = item.status === "COMPLETED";
 
                           return (
@@ -305,7 +308,7 @@ export function RoutineCalendarView({
                                 e.stopPropagation();
                                 if (onEditRoutine) onEditRoutine(item);
                               }}
-                              className={`absolute left-0.5 right-0.5 z-10 rounded-lg p-2 text-xs font-semibold border flex flex-col justify-between shadow-sm transition-all overflow-hidden cursor-pointer ${
+                              className={`absolute left-0.5 right-0.5 z-10 rounded-lg p-1.5 text-xs font-semibold border flex flex-col justify-between shadow-sm transition-all overflow-hidden cursor-pointer ${
                                 isCompleted
                                   ? "bg-emerald-100 text-emerald-950 border-emerald-300 line-through opacity-85"
                                   : "bg-indigo-900 text-indigo-100 border-indigo-700 shadow-md ring-1 ring-indigo-500/60"
@@ -313,21 +316,25 @@ export function RoutineCalendarView({
                             >
                               <div className="flex items-center justify-between gap-1">
                                 <div className="flex items-center gap-1 min-w-0">
-                                  <Moon className="h-3.5 w-3.5 text-indigo-300 flex-shrink-0" />
+                                  <Moon className="h-3 w-3 text-indigo-300 flex-shrink-0" />
                                   <span className="font-bold truncate text-[11px] leading-tight">
                                     ☀️ (Cont. Noturna) {item.title}
                                   </span>
                                 </div>
                               </div>
-                              <div className="flex items-center justify-between text-[10px] opacity-85 font-mono mt-auto">
-                                <span>Até as {item.endTime}</span>
-                              </div>
+                              {heightPx >= 24 && (
+                                <div className="flex items-center justify-between text-[9px] opacity-85 font-mono mt-auto">
+                                  <span>Até as {item.endTime}</span>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
 
                     {/* Blocos de tarefas posicionados absolutamente conforme inicio e fim */}
-                    {dayItems.map((item) => {
+                    {dayItems
+                      .filter((item) => !item.isOvernightContinuation)
+                      .map((item) => {
                       const [h1Str, m1Str] = item.startTime.split(":");
                       const h1 = parseInt(h1Str, 10);
                       const m1 = parseInt(m1Str || "0", 10);
