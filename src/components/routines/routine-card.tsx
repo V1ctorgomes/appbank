@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toggleRoutineLog, deleteRoutine, deleteRoutineLog } from "@/actions/routines";
+import { RoutineIcon } from "./routine-icon";
 
 interface RoutineCardProps {
   item: {
@@ -102,7 +103,7 @@ export function RoutineCard({ item, dateStr, onEdit }: RoutineCardProps) {
                 : "bg-slate-100 text-slate-700"
             }`}
           >
-            {item.icon || (isBreak ? "☕" : isUnexpected ? "⚡" : "🎯")}
+            <RoutineIcon name={item.icon} type={item.type} isAdHoc={item.isAdHoc} className="h-5 w-5" />
           </div>
 
           <div className="flex-1 min-w-0">

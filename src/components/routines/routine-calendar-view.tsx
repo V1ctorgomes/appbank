@@ -13,6 +13,7 @@ import {
   Plus,
 } from "lucide-react";
 import { formatDateForInput, formatDate } from "@/lib/utils";
+import { RoutineIcon } from "./routine-icon";
 
 interface RoutineCalendarViewProps {
   selectedDateStr: string;
@@ -249,7 +250,7 @@ export function RoutineCalendarView({
                                 }`}
                               >
                                 <div className="flex items-center gap-1 truncate">
-                                  <span>{item.icon || (isBreak ? "☕" : isUnexpected ? "⚡" : "🎯")}</span>
+                                  <RoutineIcon name={item.icon} type={item.type} isAdHoc={item.isAdHoc} className="h-3 w-3 flex-shrink-0" />
                                   <span className="truncate">{item.title}</span>
                                 </div>
                                 <span className="text-[9px] font-mono opacity-75">{item.startTime}</span>

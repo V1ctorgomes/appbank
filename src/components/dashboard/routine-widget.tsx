@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Calendar, ArrowRight, CheckCircle2 } from "lucide-react";
 import { getRoutinesForDate } from "@/actions/routines";
+import { RoutineIcon } from "@/components/routines/routine-icon";
 
 export async function RoutineWidget() {
   const routineData = await getRoutinesForDate();
@@ -70,7 +71,7 @@ export async function RoutineWidget() {
             }`}
           >
             <div className="flex items-center gap-2 truncate">
-              <span>{item.icon || "📌"}</span>
+              <RoutineIcon name={item.icon} type={item.type} isAdHoc={item.isAdHoc} className="h-4 w-4 text-blue-600 flex-shrink-0" />
               <span className={`truncate ${item.status === "COMPLETED" ? "line-through" : ""}`}>
                 {item.title}
               </span>

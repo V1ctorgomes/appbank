@@ -6,14 +6,13 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { X, Calendar, Clock, Coffee, Target } from "lucide-react";
 import { createRoutine, updateRoutine } from "@/actions/routines";
+import { ICON_OPTIONS, RoutineIcon } from "./routine-icon";
 
 interface RoutineFormModalProps {
   routineToEdit?: any;
   initialStartTime?: string;
   onClose: () => void;
 }
-
-const EMOJI_OPTIONS = ["📌", "🏋️", "☕", "📚", "💼", "🧘", "💊", "🏃", "🍏", "💵", "💻", "✈️"];
 
 const WEEKDAYS = [
   { id: 1, label: "Seg" },
@@ -31,7 +30,7 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
 
   const [title, setTitle] = useState(routineToEdit?.title || "");
   const [description, setDescription] = useState(routineToEdit?.description || "");
-  const [icon, setIcon] = useState(routineToEdit?.icon || "📌");
+  const [icon, setIcon] = useState(routineToEdit?.icon || "target");
   const [type, setType] = useState<"ACTIVITY" | "BREAK_REST" | "GENERAL">(
     routineToEdit?.type || "ACTIVITY"
   );
@@ -129,28 +128,40 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Título da Rotina *
             </label>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <select
-                  value={icon}
-                  onChange={(e) => setIcon(e.target.value)}
-                  className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  {EMOJI_OPTIONS.map((e) => (
-                    <option key={e} value={e}>
-                      {e}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Input
-                type="text"
-                required
-                placeholder="Ex: Treino de Academia, Estudar React, Café & Pausa"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="flex-1"
-              />
+            <Input
+              type="text"
+              required
+              placeholder="Ex: Treino de Academia, Estudar React, Pausa para Café"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          {/* Seletor de Ícones Lucide */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Ícone da Atividade
+            </label>
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 border border-slate-200 rounded-lg bg-slate-50">
+              {ICON_OPTIONS.map((opt) => {
+                const IconComp = opt.icon;
+                const isSelected = icon === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    title={opt.label}
+                    onClick={() => setIcon(opt.id)}
+                    className={`p-2 rounded-lg transition-all flex items-center justify-center ${
+                      isSelected
+                        ? "bg-blue-600 text-white shadow-sm ring-2 ring-blue-300"
+                        : "bg-white text-slate-600 hover:bg-slate-200 border border-slate-200"
+                    }`}
+                  >
+                    <IconComp className="h-4 w-4" />
+                  </button>
+                );
+              })}
             </div>
           </div>
 
