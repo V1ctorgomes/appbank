@@ -336,4 +336,62 @@ export async function getGoalsSummary() {
   };
 }
 
+export async function toggleGoalDailyCheckin(id: string, dateStr: string, status?: boolean) {
+  const user = await requireAuth();
 
+  const existing = await prisma.goal.findFirst({
+    where: { id, userId: user.id, deletedAt: null },
+  });
+  
+  if (!existing) {
+    return { error: "Meta não encontrada" };
+  }
+
+  let checkInsMap: Record<string, boolean> = {};
+  try {
+    if (existing.checkIns) {
+      checkInsMap = JSON.parse(existing.checkIns);
+    }
+  } catch (e) {
+    checkInsMap = {};
+  }
+
+  if (status !== undefined) {
+    checkInsMap[dateStr] = status;
+  } else {
+    // Toggle logic if no explicit status is provided
+    const current = checkInsMap[dateStr];
+    if (current === undefined) {
+      checkInsMap[dateStr] = true;
+    } else if (current === true) {
+      checkInsMap[dateStr] = false;
+    } else {
+      delete checkInsMap[dateStr];
+    }
+  }
+
+  const newCheckIns = JSON.stringify(checkInsMap);
+  
+  // Calculate new currentCount (number of days marked as true)
+  const currentCount = Object.values(checkInsMap).filter((val) => val === true).length;
+  
+  // Check completion
+  let isCompleted = existing.isCompleted;
+  if (existing.type === "MANUAL_CHECKLIST" && existing.targetDays) {
+    isCompleted = currentCount >= existing.targetDays;
+  }
+
+  await prisma.goal.update({
+    where: { id },
+    data: {
+      checkIns: newCheckIns,
+      currentCount,
+      isCompleted,
+      completedAt: isCompleted && !existing.isCompleted ? new Date() : existing.completedAt,
+    },
+  });
+
+  revalidatePath("/metas");
+  revalidatePath("/dashboard");
+  return { success: true };
+}

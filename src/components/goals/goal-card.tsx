@@ -33,9 +33,10 @@ interface GoalCardProps {
     selectedDays?: string | null;
     startDate?: Date | string | null;
     targetDate?: Date | string | null;
-    targetDate?: Date | string | null;
     checkIns?: string | null;
     isCompleted: boolean;
+    completedAt?: Date | string | null;
+  };
   onEdit: (goal: any) => void;
 }
 
