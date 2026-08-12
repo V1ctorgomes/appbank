@@ -62,6 +62,7 @@ export function RoutineIcon({ name, type, isAdHoc, className = "h-4 w-4" }: Rout
       return <Target className={className} />;
     case "pin":
     case "📌":
+      return <Pin className={className} />;
     default:
       if (type === "ACTIVITY") return <Target className={className} />;
       return <Pin className={className} />;

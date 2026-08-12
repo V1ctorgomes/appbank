@@ -280,15 +280,7 @@ export function RoutineCalendarView({
                     {/* Blocos de continuação matutina para tarefas pernoite (ex: 23:00 às 06:30) */}
                     {d.isSelected &&
                       items
-                        .filter((item) => {
-                          if (item.isOvernightContinuation) return true;
-                          if (!item.startTime || !item.endTime) return false;
-                          const [h1, m1] = item.startTime.split(":").map(Number);
-                          const [h2, m2] = item.endTime.split(":").map(Number);
-                          const isOvernight = (h2 * 60 + m2) <= (h1 * 60 + m1);
-                          const endsAfterSixAM = (h2 * 60 + m2) > (6 * 60);
-                          return isOvernight && endsAfterSixAM;
-                        })
+                        .filter((item) => item.isOvernightContinuation)
                         .map((item) => {
                           const [h2Str, m2Str] = item.endTime.split(":");
                           const h2 = parseInt(h2Str, 10);
