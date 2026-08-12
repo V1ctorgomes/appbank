@@ -59,7 +59,7 @@ export function GoalsContainer({ initialGoals, summary }: GoalsContainerProps) {
         <StatCard
           title="Metas Concluídas"
           value={summary.completed.toString()}
-          subtitle="Objetivos alcançados 🎉"
+          subtitle="Objetivos alcançados"
           variant="income"
         />
         <StatCard

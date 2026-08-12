@@ -244,8 +244,9 @@ export function GoalCard({ goal, onEdit }: GoalCardProps) {
             {typeInfo.label}
           </span>
           {goal.type === "EXPENSE_STREAK" && goal.selectedDays && (
-            <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
-              📅 {formatWeekdays(goal.selectedDays)}
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+              <Calendar className="h-3 w-3 text-slate-500" />
+              {formatWeekdays(goal.selectedDays)}
             </span>
           )}
         </div>

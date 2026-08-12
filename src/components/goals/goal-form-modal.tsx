@@ -164,11 +164,11 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
             onChange={(e) => setType(e.target.value)}
             className="w-full"
             options={[
-              { value: "LOAN_COUNT", label: "🤝 Qtd. de Empréstimos Simultâneos" },
-              { value: "LOAN_PORTFOLIO", label: "💰 Valor em Carteira de Empréstimos (R$)" },
-              { value: "SAVINGS_TARGET", label: "✈️ Meta / Viagem / Economia (R$)" },
-              { value: "EXPENSE_STREAK", label: "🔥 Dias Sem Gastar (Streak)" },
-              { value: "MANUAL_CHECKLIST", label: "📋 Meta Manual / Checklist" },
+              { value: "LOAN_COUNT", label: "Qtd. de Empréstimos Simultâneos" },
+              { value: "LOAN_PORTFOLIO", label: "Valor em Carteira de Empréstimos (R$)" },
+              { value: "SAVINGS_TARGET", label: "Meta / Viagem / Economia (R$)" },
+              { value: "EXPENSE_STREAK", label: "Dias Sem Gastar (Streak)" },
+              { value: "MANUAL_CHECKLIST", label: "Meta Manual / Checklist" },
             ]}
           />
 

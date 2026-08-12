@@ -181,7 +181,7 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
                 }`}
               >
                 <Target className="h-4 w-4 text-blue-600" />
-                🎯 Atividade / Foco
+                Atividade / Foco
               </button>
               <button
                 type="button"
@@ -193,7 +193,7 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
                 }`}
               >
                 <Coffee className="h-4 w-4 text-amber-600" />
-                ☕ Pausa / Descanso
+                Pausa / Descanso
               </button>
             </div>
           </div>
@@ -228,10 +228,10 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
             options={[
-              { value: "ANYTIME", label: "⏰ Qualquer Horário" },
-              { value: "MORNING", label: "🌅 Manhã (05:00 - 12:00)" },
-              { value: "AFTERNOON", label: "☀️ Tarde (12:00 - 18:00)" },
-              { value: "EVENING", label: "🌙 Noite (18:00 - 23:59)" },
+              { value: "ANYTIME", label: "Qualquer Horário" },
+              { value: "MORNING", label: "Manhã (05:00 - 12:00)" },
+              { value: "AFTERNOON", label: "Tarde (12:00 - 18:00)" },
+              { value: "EVENING", label: "Noite (18:00 - 23:59)" },
             ]}
           />
 

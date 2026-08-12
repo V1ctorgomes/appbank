@@ -51,7 +51,7 @@ export async function GoalsWidget() {
 
           if (goal.isCompleted) {
             percent = 100;
-            text = "Concluída 🎉";
+            text = "Concluída";
           } else if (goal.type === "LOAN_COUNT" && goal.targetCount) {
             const cur = goal.currentCount ?? 0;
             percent = Math.min(100, Math.round((cur / goal.targetCount) * 100));
