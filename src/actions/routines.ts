@@ -39,8 +39,8 @@ export async function getRoutinesForDate(dateStr?: string) {
       if (r.specificDate) {
         return r.specificDate === targetDateStr;
       }
-      if (!r.daysOfWeek) return true;
-      const days = r.daysOfWeek.split(",").map((d: string) => d.trim());
+      if (!r.daysOfWeek || r.daysOfWeek.trim() === "") return false;
+      const days = r.daysOfWeek.split(",").map((d: string) => d.trim()).filter(Boolean);
       return days.includes(dayOfWeek);
     });
 
@@ -364,8 +364,8 @@ export async function getRoutineWeeklySummary() {
         if (r.specificDate) {
           return r.specificDate === dateStr;
         }
-        if (!r.daysOfWeek) return true;
-        return r.daysOfWeek.split(",").map((s: string) => s.trim()).includes(dayOfWeek);
+        if (!r.daysOfWeek || r.daysOfWeek.trim() === "") return false;
+        return r.daysOfWeek.split(",").map((s: string) => s.trim()).filter(Boolean).includes(dayOfWeek);
       });
 
       const logs = await db.routineLog.findMany({

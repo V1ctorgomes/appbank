@@ -27,6 +27,33 @@ const HOURS = Array.from({ length: 18 }, (_, i) => {
   return String(h).padStart(2, "0") + ":00";
 });
 
+const monthNames = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
+
+function formatDuration(startTime?: string | null, endTime?: string | null) {
+  if (!startTime || !endTime) return null;
+  const [h1, m1] = startTime.split(":").map(Number);
+  const [h2, m2] = endTime.split(":").map(Number);
+  const totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
+  if (totalMins <= 0) return null;
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
+function getSpanHours(startTime?: string | null, endTime?: string | null) {
+  if (!startTime || !endTime) return 1;
+  const [h1, m1] = startTime.split(":").map(Number);
+  const [h2, m2] = endTime.split(":").map(Number);
+  const totalMins = (h2 * 60 + m2) - (h1 * 60 + m1);
+  if (totalMins <= 0) return 1;
+  return Math.max(1, Math.ceil(totalMins / 60));
+}
+
 export function RoutineCalendarView({
   selectedDateStr,
   items,
@@ -79,11 +106,9 @@ export function RoutineCalendarView({
     const totalDays = lastDay.getUTCDate();
 
     const days = [];
-    // Espaços vazios antes do dia 1
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
-    // Dias do mês
     for (let day = 1; day <= totalDays; day++) {
       const dObj = new Date(Date.UTC(year, month, day, 12, 0, 0));
       const dStr = formatDateForInput(dObj);
@@ -98,50 +123,37 @@ export function RoutineCalendarView({
   };
 
   const monthDays = getMonthDays();
-  const monthNames = [
-    "Janeiro",
-    "Fevereiro",
-    "Março",
-    "Abril",
-    "Maio",
-    "Junho",
-    "Julho",
-    "Agosto",
-    "Setembro",
-    "Outubro",
-    "Novembro",
-    "Dezembro",
-  ];
 
   const handlePrevMonth = () => {
     setCurrentYearMonth((prev) => {
-      if (prev.month === 0) return { year: prev.year - 1, month: 11 };
+      if (prev.month === 0) {
+        return { year: prev.year - 1, month: 11 };
+      }
       return { ...prev, month: prev.month - 1 };
     });
   };
 
   const handleNextMonth = () => {
     setCurrentYearMonth((prev) => {
-      if (prev.month === 11) return { year: prev.year + 1, month: 0 };
+      if (prev.month === 11) {
+        return { year: prev.year + 1, month: 0 };
+      }
       return { ...prev, month: prev.month + 1 };
     });
   };
 
+  const unassignedItems = items.filter((item) => !item.startTime);
+
   return (
-    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      {/* Header com Seletor de Modo (Agenda Semanal vs Calendário Mensal) */}
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
+      {/* Header controls: Alternar Modo de Visão */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
         <div className="flex items-center gap-2">
-          <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
-            <CalendarIcon className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-sm text-slate-900">Modo de Exibição da Agenda</h3>
-            <p className="text-xs text-slate-500">Visualize seus compromissos e rotinas no tempo</p>
-          </div>
+          <Clock className="h-5 w-5 text-blue-600" />
+          <h3 className="font-bold text-slate-900 text-base">Agenda & Bloco de Horários</h3>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs">
+        <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-semibold">
           <button
             type="button"
             onClick={() => setViewMode("TIMETABLE")}
@@ -194,13 +206,41 @@ export function RoutineCalendarView({
             ))}
           </div>
 
+          {/* Tarefas Sem Horário Fixo */}
+          {unassignedItems.length > 0 && (
+            <div className="p-2 bg-slate-50 rounded-lg border border-slate-200 mb-2">
+              <span className="text-[11px] font-bold text-slate-600 mb-1.5 block">
+                📌 Tarefas Sem Horário Específico ({unassignedItems.length})
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {unassignedItems.map((item) => (
+                  <span
+                    key={item.id}
+                    className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold border ${
+                      item.status === "COMPLETED"
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-300 line-through"
+                        : item.type === "BREAK_REST"
+                        ? "bg-amber-100 text-amber-900 border-amber-300"
+                        : item.isAdHoc
+                        ? "bg-purple-100 text-purple-900 border-purple-300"
+                        : "bg-blue-100 text-blue-900 border-blue-300"
+                    }`}
+                  >
+                    <RoutineIcon name={item.icon} type={item.type} isAdHoc={item.isAdHoc} className="h-3.5 w-3.5" />
+                    {item.title}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Grade de Horários (Linhas de 06:00 a 23:00) */}
-          <div className="max-h-[500px] overflow-y-auto space-y-1.5 pr-1">
+          <div className="max-h-[550px] overflow-y-auto space-y-1.5 pr-1">
             {HOURS.map((hourStr) => {
               const hourNum = parseInt(hourStr.split(":")[0], 10);
 
               return (
-                <div key={hourStr} className="grid grid-cols-8 gap-1 min-h-[44px]">
+                <div key={hourStr} className="grid grid-cols-8 gap-1 min-h-[48px]">
                   {/* Coluna do Horário */}
                   <div className="flex items-center justify-center text-[11px] font-semibold text-slate-600 bg-slate-50 rounded-lg border border-slate-100">
                     {hourStr}
@@ -208,7 +248,6 @@ export function RoutineCalendarView({
 
                   {/* 7 Colunas para os dias da semana */}
                   {weekDays.map((d) => {
-                    // Itens agendados para este dia e esta hora específica
                     const matchingItems = d.isSelected
                       ? items.filter((item) => {
                           if (!item.startTime) return false;
@@ -224,7 +263,7 @@ export function RoutineCalendarView({
                           onSelectDate(d.dateStr);
                           if (onAddRoutineWithTime) onAddRoutineWithTime(hourStr);
                         }}
-                        className={`group relative rounded-lg border p-1 transition-all cursor-pointer flex flex-col gap-1 min-h-[44px] ${
+                        className={`group relative rounded-lg border p-1 transition-all cursor-pointer flex flex-col gap-1 min-h-[48px] ${
                           d.isSelected
                             ? "border-blue-200/80 bg-blue-50/20 hover:bg-blue-50/50"
                             : "border-slate-100 bg-white hover:bg-slate-50"
@@ -235,25 +274,50 @@ export function RoutineCalendarView({
                             const isCompleted = item.status === "COMPLETED";
                             const isBreak = item.type === "BREAK_REST";
                             const isUnexpected = item.isAdHoc || item.status === "UNEXPECTED_EVENT";
+                            const durationText = formatDuration(item.startTime, item.endTime);
+                            const spanHours = getSpanHours(item.startTime, item.endTime);
+
+                            const minHeightStyle = spanHours >= 3
+                              ? "min-h-[158px] z-10 shadow-md"
+                              : spanHours === 2
+                              ? "min-h-[102px] z-10 shadow-sm"
+                              : "min-h-[44px]";
 
                             return (
                               <div
                                 key={item.id}
-                                className={`rounded px-1.5 py-1 text-[11px] leading-tight font-semibold border flex items-center justify-between gap-1 shadow-2xs ${
+                                className={`w-full rounded-lg p-2 text-xs font-semibold border flex flex-col justify-between transition-all ${minHeightStyle} ${
                                   isCompleted
-                                    ? "bg-emerald-100 text-emerald-800 border-emerald-300 line-through"
+                                    ? "bg-emerald-100 text-emerald-900 border-emerald-300 line-through opacity-80"
                                     : isBreak
-                                    ? "bg-amber-100 text-amber-900 border-amber-300"
+                                    ? "bg-amber-100 text-amber-950 border-amber-300 shadow-xs"
                                     : isUnexpected
-                                    ? "bg-purple-100 text-purple-900 border-purple-300"
-                                    : "bg-blue-100 text-blue-900 border-blue-300"
+                                    ? "bg-purple-100 text-purple-950 border-purple-300 shadow-xs"
+                                    : "bg-blue-100 text-blue-950 border-blue-300 shadow-xs hover:border-blue-400"
                                 }`}
                               >
-                                <div className="flex items-center gap-1 truncate">
-                                  <RoutineIcon name={item.icon} type={item.type} isAdHoc={item.isAdHoc} className="h-3 w-3 flex-shrink-0" />
-                                  <span className="truncate">{item.title}</span>
+                                <div className="flex items-start justify-between gap-1">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <RoutineIcon
+                                      name={item.icon}
+                                      type={item.type}
+                                      isAdHoc={item.isAdHoc}
+                                      className="h-3.5 w-3.5 flex-shrink-0"
+                                    />
+                                    <span className="font-bold truncate text-xs leading-tight">{item.title}</span>
+                                  </div>
+                                  {durationText && (
+                                    <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-black/10 flex-shrink-0">
+                                      {durationText}
+                                    </span>
+                                  )}
                                 </div>
-                                <span className="text-[9px] font-mono opacity-75">{item.startTime}</span>
+
+                                <div className="flex items-center justify-between text-[10px] opacity-80 font-mono mt-1">
+                                  <span>
+                                    {item.startTime} {item.endTime ? `➔ ${item.endTime}` : ""}
+                                  </span>
+                                </div>
                               </div>
                             );
                           })

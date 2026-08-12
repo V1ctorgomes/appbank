@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatDate, formatDateForInput } from "@/lib/utils";
 import {
   Calendar as CalendarIcon,
@@ -14,6 +14,7 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getRoutinesForDate } from "@/actions/routines";
 import { RoutineCard } from "./routine-card";
 import { RoutineFormModal } from "./routine-form-modal";
 import { AdHocLogModal } from "./adhoc-log-modal";
@@ -34,12 +35,35 @@ interface RoutineContainerProps {
 
 export function RoutineContainer({ initialData }: RoutineContainerProps) {
   const [selectedDateStr, setSelectedDateStr] = useState(initialData.dateStr);
+  const [data, setData] = useState(initialData);
+  const [loading, setLoading] = useState(false);
   const [mainView, setMainView] = useState<"AGENDA" | "TIMELINE">("AGENDA");
 
   const [showRoutineModal, setShowRoutineModal] = useState(false);
   const [showAdHocModal, setShowAdHocModal] = useState(false);
   const [routineToEdit, setRoutineToEdit] = useState<any | null>(null);
   const [initialStartTime, setInitialStartTime] = useState<string | undefined>(undefined);
+
+  // Recarrega os dados do dia quando selectedDateStr é alterado
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    getRoutinesForDate(selectedDateStr).then((res) => {
+      if (isMounted && res) {
+        setData(res);
+        setLoading(false);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedDateStr]);
+
+  const handleRefresh = () => {
+    getRoutinesForDate(selectedDateStr).then((res) => {
+      if (res) setData(res);
+    });
+  };
 
   const todayStr = formatDateForInput(new Date());
   const isToday = selectedDateStr === todayStr;
@@ -167,21 +191,21 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
         <div className="flex items-center justify-between text-xs font-medium text-slate-700">
           <span className="flex items-center gap-1.5 font-semibold text-slate-900">
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            Progresso do Dia: {initialData.summary.completed} de {initialData.summary.total} tarefas
+            Progresso do Dia: {data.summary.completed} de {data.summary.total} tarefas
           </span>
-          <span className="font-bold text-slate-900">{initialData.summary.percentage}%</span>
+          <span className="font-bold text-slate-900">{data.summary.percentage}%</span>
         </div>
 
         <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
           <div
             className={`h-full transition-all duration-500 rounded-full ${
-              initialData.summary.percentage >= 100
+              data.summary.percentage >= 100
                 ? "bg-emerald-500"
-                : initialData.summary.percentage >= 60
+                : data.summary.percentage >= 60
                 ? "bg-blue-600"
                 : "bg-amber-500"
             }`}
-            style={{ width: `${initialData.summary.percentage}%` }}
+            style={{ width: `${data.summary.percentage}%` }}
           />
         </div>
       </div>
@@ -196,7 +220,7 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
       {mainView === "AGENDA" ? (
         <RoutineCalendarView
           selectedDateStr={selectedDateStr}
-          items={initialData.items}
+          items={data.items}
           onSelectDate={(dateStr) => setSelectedDateStr(dateStr)}
           onAddRoutineWithTime={(timeStr) => {
             setRoutineToEdit(null);
@@ -207,7 +231,7 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
       ) : (
         /* VISÃO LISTA / TIMELINE */
         <div className="space-y-3">
-          {initialData.items.length === 0 ? (
+          {data.items.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-12 px-4 text-center">
               <div className="rounded-full bg-blue-50 p-4 text-blue-600 mb-3">
                 <ListTodo className="h-8 w-8" />
@@ -232,7 +256,7 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
               </div>
             </div>
           ) : (
-            initialData.items.map((item) => (
+            data.items.map((item) => (
               <RoutineCard
                 key={item.id}
                 item={item}
