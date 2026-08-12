@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { X, Calendar, Clock, Coffee, Target } from "lucide-react";
+import { X, Calendar, Clock, Coffee, Target, Repeat, CalendarDays } from "lucide-react";
 import { createRoutine, updateRoutine } from "@/actions/routines";
 import { ICON_OPTIONS, RoutineIcon } from "./routine-icon";
 
@@ -38,6 +38,12 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
   const [startTime, setStartTime] = useState(routineToEdit?.startTime || initialStartTime || "");
   const [endTime, setEndTime] = useState(routineToEdit?.endTime || "");
 
+  // Frequência: Recorrente vs Data Específica
+  const [isSpecificDate, setIsSpecificDate] = useState<boolean>(() => !!routineToEdit?.specificDate);
+  const [specificDate, setSpecificDate] = useState<string>(
+    () => routineToEdit?.specificDate || new Date().toISOString().split("T")[0]
+  );
+
   const [selectedDays, setSelectedDays] = useState<number[]>(() => {
     if (routineToEdit?.daysOfWeek) {
       return routineToEdit.daysOfWeek.split(",").map((d: string) => parseInt(d.trim(), 10));
@@ -59,7 +65,12 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
     setError(null);
 
     if (!title.trim()) {
-      setError("Por favor, informe o título da rotina");
+      setError("Por favor, informe o título");
+      return;
+    }
+
+    if (isSpecificDate && !specificDate) {
+      setError("Por favor, informe a data específica para a tarefa");
       return;
     }
 
@@ -71,7 +82,8 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
         icon,
         type,
         period,
-        daysOfWeek: selectedDays.sort((a, b) => a - b).join(","),
+        daysOfWeek: isSpecificDate ? "" : selectedDays.sort((a, b) => a - b).join(","),
+        specificDate: isSpecificDate ? specificDate : undefined,
         startTime: startTime || undefined,
         endTime: endTime || undefined,
         order: 0,
@@ -90,22 +102,28 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
         onClose();
       }
     } catch (err: any) {
-      setError(err.message || "Erro ao salvar rotina");
+      setError(err.message || "Erro ao salvar tarefa/rotina");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+      <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl my-8">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2">
             <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
               <Calendar className="h-5 w-5" />
             </div>
             <h2 className="text-lg font-bold text-slate-900">
-              {routineToEdit ? "Editar Rotina" : "Nova Rotina Recorrente"}
+              {routineToEdit
+                ? isSpecificDate
+                  ? "Editar Tarefa Pontual"
+                  : "Editar Rotina Recorrente"
+                : isSpecificDate
+                ? "Nova Tarefa Pontual (Data Única)"
+                : "Nova Rotina Recorrente"}
             </h2>
           </div>
           <button
@@ -123,15 +141,107 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
         )}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          {/* Frequência: Recorrente vs Data Específica */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Frequência da Atividade *
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIsSpecificDate(false)}
+                className={`flex items-center justify-center gap-2 p-2.5 rounded-lg border text-xs font-semibold transition-all ${
+                  !isSpecificDate
+                    ? "border-blue-600 bg-blue-50 text-blue-700 ring-2 ring-blue-200"
+                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <Repeat className="h-4 w-4 text-blue-600" />
+                Rotina Recorrente
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSpecificDate(true)}
+                className={`flex items-center justify-center gap-2 p-2.5 rounded-lg border text-xs font-semibold transition-all ${
+                  isSpecificDate
+                    ? "border-purple-600 bg-purple-50 text-purple-700 ring-2 ring-purple-200"
+                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <CalendarDays className="h-4 w-4 text-purple-600" />
+                Tarefa Pontual (Data Única)
+              </button>
+            </div>
+          </div>
+
+          {/* Seletor de Data Específica ou Dias da Semana */}
+          {isSpecificDate ? (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Data do Compromisso / Tarefa *
+              </label>
+              <Input
+                type="date"
+                required
+                value={specificDate}
+                onChange={(e) => setSpecificDate(e.target.value)}
+              />
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Dias da Semana *
+                </label>
+                <div className="flex gap-2 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDays([1, 2, 3, 4, 5])}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Seg-Sex
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDays([0, 1, 2, 3, 4, 5, 6])}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Todos
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1.5">
+                {WEEKDAYS.map((w) => {
+                  const isActive = selectedDays.includes(w.id);
+                  return (
+                    <button
+                      key={w.id}
+                      type="button"
+                      onClick={() => toggleDay(w.id)}
+                      className={`py-2 text-center rounded-lg text-xs font-bold transition-all ${
+                        isActive
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {w.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Título & Ícone */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Título da Rotina *
+              Título *
             </label>
             <Input
               type="text"
               required
-              placeholder="Ex: Treino de Academia, Estudar React, Pausa para Café"
+              placeholder={isSpecificDate ? "Ex: Ir ao Médico, Reunião com Cliente" : "Ex: Treino, Estudar React, Pausa para Café"}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -235,51 +345,6 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
             ]}
           />
 
-          {/* Dias da Semana */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-700">
-                Dias da Semana *
-              </label>
-              <div className="flex gap-2 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setSelectedDays([1, 2, 3, 4, 5])}
-                  className="text-blue-600 hover:underline"
-                >
-                  Seg-Sex
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDays([0, 1, 2, 3, 4, 5, 6])}
-                  className="text-blue-600 hover:underline"
-                >
-                  Todos
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-7 gap-1.5">
-              {WEEKDAYS.map((w) => {
-                const isActive = selectedDays.includes(w.id);
-                return (
-                  <button
-                    key={w.id}
-                    type="button"
-                    onClick={() => toggleDay(w.id)}
-                    className={`py-2 text-center rounded-lg text-xs font-bold transition-all ${
-                      isActive
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    {w.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Descrição */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -299,7 +364,7 @@ export function RoutineFormModal({ routineToEdit, initialStartTime, onClose }: R
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Salvando..." : routineToEdit ? "Salvar Alterações" : "Criar Rotina"}
+              {loading ? "Salvando..." : routineToEdit ? "Salvar Alterações" : isSpecificDate ? "Criar Tarefa Pontual" : "Criar Rotina"}
             </Button>
           </div>
         </form>

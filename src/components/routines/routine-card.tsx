@@ -13,6 +13,7 @@ import {
   Target,
   AlertCircle,
   XCircle,
+  CalendarDays,
 } from "lucide-react";
 import { toggleRoutineLog, deleteRoutine, deleteRoutineLog } from "@/actions/routines";
 import { RoutineIcon } from "./routine-icon";
@@ -26,6 +27,8 @@ interface RoutineCardProps {
     icon?: string | null;
     type: "ACTIVITY" | "BREAK_REST" | "GENERAL";
     period: string;
+    daysOfWeek?: string;
+    specificDate?: string | null;
     startTime?: string | null;
     endTime?: string | null;
     isAdHoc: boolean;
@@ -140,6 +143,14 @@ export function RoutineCard({ item, dateStr, onEdit }: RoutineCardProps) {
                   </>
                 )}
               </span>
+
+              {/* Specific Date Badge */}
+              {item.specificDate && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 bg-purple-100/60 px-2 py-0.5 rounded-md border border-purple-200">
+                  <CalendarDays className="h-3 w-3 text-purple-500" />
+                  Data: {item.specificDate.split("-").reverse().join("/")}
+                </span>
+              )}
 
               {/* Time slot Badge */}
               {(item.startTime || item.endTime) && (

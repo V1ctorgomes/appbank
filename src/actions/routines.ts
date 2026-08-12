@@ -34,8 +34,11 @@ export async function getRoutinesForDate(dateStr?: string) {
       orderBy: [{ startTime: "asc" }, { order: "asc" }, { createdAt: "asc" }],
     });
 
-    // Filtra rotinas ativas para o dia da semana
+    // Filtra rotinas para o dia: se specificDate existe, compara a data exata. Senão, usa daysOfWeek.
     const routinesForDay = allRoutines.filter((r: any) => {
+      if (r.specificDate) {
+        return r.specificDate === targetDateStr;
+      }
       if (!r.daysOfWeek) return true;
       const days = r.daysOfWeek.split(",").map((d: string) => d.trim());
       return days.includes(dayOfWeek);
@@ -71,6 +74,8 @@ export async function getRoutinesForDate(dateStr?: string) {
         icon: routine.icon,
         type: routine.type,
         period: routine.period,
+        daysOfWeek: routine.daysOfWeek,
+        specificDate: routine.specificDate || null,
         startTime: routine.startTime,
         endTime: routine.endTime,
         isAdHoc: false,
@@ -90,6 +95,8 @@ export async function getRoutinesForDate(dateStr?: string) {
         icon: "zap",
         type: "ACTIVITY",
         period: "ANYTIME",
+        daysOfWeek: "",
+        specificDate: targetDateStr,
         startTime: log.startTime,
         endTime: log.endTime,
         isAdHoc: true,
@@ -120,7 +127,7 @@ export async function getRoutinesForDate(dateStr?: string) {
         percentage,
       },
     };
-  } catch (err) {
+  } catch (err: any) {
     console.error("Erro em getRoutinesForDate:", err);
     return {
       dateStr: dateStr || toDateKey(new Date()),
@@ -131,80 +138,97 @@ export async function getRoutinesForDate(dateStr?: string) {
 }
 
 export async function createRoutine(input: RoutineInput) {
-  const user = await requireAuth();
-  const data = routineSchema.parse(input);
+  try {
+    const user = await requireAuth();
+    const data = routineSchema.parse(input);
 
-  const routine = await db.routine.create({
-    data: {
-      userId: user.id,
-      title: data.title,
-      description: data.description,
-      icon: data.icon || "pin",
-      type: data.type,
-      period: data.period,
-      daysOfWeek: data.daysOfWeek,
-      startTime: data.startTime || null,
-      endTime: data.endTime || null,
-      order: data.order,
-    },
-  });
+    const routine = await db.routine.create({
+      data: {
+        userId: user.id,
+        title: data.title,
+        description: data.description,
+        icon: data.icon || "pin",
+        type: data.type,
+        period: data.period,
+        daysOfWeek: data.daysOfWeek,
+        specificDate: data.specificDate || null,
+        startTime: data.startTime || null,
+        endTime: data.endTime || null,
+        order: data.order,
+      },
+    });
 
-  revalidatePath("/rotina");
-  revalidatePath("/dashboard");
-  return { success: true, routine };
+    revalidatePath("/rotina");
+    revalidatePath("/dashboard");
+    return { success: true, routine };
+  } catch (err: any) {
+    console.error("Erro em createRoutine:", err);
+    return { error: err.message || "Erro ao criar tarefa/rotina" };
+  }
 }
 
 export async function updateRoutine(id: string, input: RoutineInput) {
-  const user = await requireAuth();
-  const data = routineSchema.parse(input);
+  try {
+    const user = await requireAuth();
+    const data = routineSchema.parse(input);
 
-  const existing = await db.routine.findFirst({
-    where: { id, userId: user.id, deletedAt: null },
-  });
+    const existing = await db.routine.findFirst({
+      where: { id, userId: user.id, deletedAt: null },
+    });
 
-  if (!existing) {
-    return { error: "Rotina não encontrada" };
+    if (!existing) {
+      return { error: "Rotina não encontrada" };
+    }
+
+    const routine = await db.routine.update({
+      where: { id },
+      data: {
+        title: data.title,
+        description: data.description,
+        icon: data.icon || "pin",
+        type: data.type,
+        period: data.period,
+        daysOfWeek: data.daysOfWeek,
+        specificDate: data.specificDate || null,
+        startTime: data.startTime || null,
+        endTime: data.endTime || null,
+        order: data.order,
+      },
+    });
+
+    revalidatePath("/rotina");
+    revalidatePath("/dashboard");
+    return { success: true, routine };
+  } catch (err: any) {
+    console.error("Erro em updateRoutine:", err);
+    return { error: err.message || "Erro ao atualizar rotina" };
   }
-
-  const routine = await db.routine.update({
-    where: { id },
-    data: {
-      title: data.title,
-      description: data.description,
-      icon: data.icon || "pin",
-      type: data.type,
-      period: data.period,
-      daysOfWeek: data.daysOfWeek,
-      startTime: data.startTime || null,
-      endTime: data.endTime || null,
-      order: data.order,
-    },
-  });
-
-  revalidatePath("/rotina");
-  revalidatePath("/dashboard");
-  return { success: true, routine };
 }
 
 export async function deleteRoutine(id: string) {
-  const user = await requireAuth();
+  try {
+    const user = await requireAuth();
 
-  const existing = await db.routine.findFirst({
-    where: { id, userId: user.id, deletedAt: null },
-  });
+    const existing = await db.routine.findFirst({
+      where: { id, userId: user.id, deletedAt: null },
+    });
 
-  if (!existing) {
-    return { error: "Rotina não encontrada" };
+    if (!existing) {
+      return { error: "Rotina não encontrada" };
+    }
+
+    await db.routine.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+
+    revalidatePath("/rotina");
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (err: any) {
+    console.error("Erro em deleteRoutine:", err);
+    return { error: err.message || "Erro ao excluir rotina" };
   }
-
-  await db.routine.update({
-    where: { id },
-    data: { deletedAt: new Date() },
-  });
-
-  revalidatePath("/rotina");
-  revalidatePath("/dashboard");
-  return { success: true };
 }
 
 export async function toggleRoutineLog(
@@ -213,92 +237,107 @@ export async function toggleRoutineLog(
   targetStatus?: string,
   notes?: string
 ) {
-  const user = await requireAuth();
+  try {
+    const user = await requireAuth();
 
-  const existingLog = await db.routineLog.findFirst({
-    where: {
-      routineId,
-      userId: user.id,
-      date: dateStr,
-    },
-  });
-
-  let nextStatus = targetStatus;
-
-  if (!nextStatus) {
-    if (!existingLog || existingLog.status !== "COMPLETED") {
-      nextStatus = "COMPLETED";
-    } else {
-      nextStatus = "FAILED";
-    }
-  }
-
-  if (existingLog) {
-    await db.routineLog.update({
-      where: { id: existingLog.id },
-      data: {
-        status: nextStatus,
-        notes: notes !== undefined ? notes : existingLog.notes,
-      },
-    });
-  } else {
-    await db.routineLog.create({
-      data: {
-        userId: user.id,
+    const existingLog = await db.routineLog.findFirst({
+      where: {
         routineId,
+        userId: user.id,
         date: dateStr,
-        status: nextStatus,
-        notes: notes || null,
       },
     });
-  }
 
-  revalidatePath("/rotina");
-  revalidatePath("/dashboard");
-  return { success: true, status: nextStatus };
+    let nextStatus = targetStatus;
+
+    if (!nextStatus) {
+      if (!existingLog || existingLog.status !== "COMPLETED") {
+        nextStatus = "COMPLETED";
+      } else {
+        nextStatus = "FAILED";
+      }
+    }
+
+    if (existingLog) {
+      await db.routineLog.update({
+        where: { id: existingLog.id },
+        data: {
+          status: nextStatus,
+          notes: notes !== undefined ? notes : existingLog.notes,
+        },
+      });
+    } else {
+      await db.routineLog.create({
+        data: {
+          userId: user.id,
+          routineId,
+          date: dateStr,
+          status: nextStatus,
+          notes: notes || null,
+        },
+      });
+    }
+
+    revalidatePath("/rotina");
+    revalidatePath("/dashboard");
+    return { success: true, status: nextStatus };
+  } catch (err: any) {
+    console.error("Erro em toggleRoutineLog:", err);
+    return { error: err.message || "Erro ao atualizar status" };
+  }
 }
 
 export async function createAdHocRoutineLog(input: AdHocLogInput) {
-  const user = await requireAuth();
-  const data = adHocLogSchema.parse(input);
+  try {
+    const user = await requireAuth();
+    const data = adHocLogSchema.parse(input);
 
-  const log = await db.routineLog.create({
-    data: {
-      userId: user.id,
-      routineId: null,
-      date: data.date,
-      title: data.title,
-      startTime: data.startTime || null,
-      endTime: data.endTime || null,
-      status: "UNEXPECTED_EVENT",
-      notes: data.notes || null,
-      isAdHoc: true,
-    },
-  });
+    const log = await db.routineLog.create({
+      data: {
+        userId: user.id,
+        routineId: null,
+        date: data.date,
+        title: data.title,
+        startTime: data.startTime || null,
+        endTime: data.endTime || null,
+        status: "UNEXPECTED_EVENT",
+        notes: data.notes || null,
+        isAdHoc: true,
+      },
+    });
 
-  revalidatePath("/rotina");
-  revalidatePath("/dashboard");
-  return { success: true, log };
+    revalidatePath("/rotina");
+    revalidatePath("/dashboard");
+    return { success: true, log };
+  } catch (err: any) {
+    console.error("Erro em createAdHocRoutineLog:", err);
+    return { error: err.message || "Erro ao registrar imprevisto" };
+  }
 }
 
 export async function deleteRoutineLog(logId: string) {
-  const user = await requireAuth();
+  try {
+    const user = await requireAuth();
 
-  const existing = await db.routineLog.findFirst({
-    where: { id: logId, userId: user.id },
-  });
+    const existing = await db.routineLog.findFirst({
+      where: { id: logId, userId: user.id },
+    });
 
-  if (!existing) {
-    return { error: "Registro não encontrado" };
+    if (!existing) {
+      return { error: "Registro não encontrado" };
+    }
+
+    await db.routineLog.delete({
+      where: { id: logId },
+    });
+
+    revalidatePath("/rotina");
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (err: any) {
+    console.error("Erro em deleteRoutineLog:", err);
+    return { error: err.message || "Erro ao excluir registro" };
   }
-
-  await db.routineLog.delete({
-    where: { id: logId },
-  });
-
-  revalidatePath("/rotina");
-  revalidatePath("/dashboard");
-  return { success: true };
 }
 
 export async function getRoutineWeeklySummary() {
@@ -322,6 +361,9 @@ export async function getRoutineWeeklySummary() {
       });
 
       const routinesForDay = routines.filter((r: any) => {
+        if (r.specificDate) {
+          return r.specificDate === dateStr;
+        }
         if (!r.daysOfWeek) return true;
         return r.daysOfWeek.split(",").map((s: string) => s.trim()).includes(dayOfWeek);
       });

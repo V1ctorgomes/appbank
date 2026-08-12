@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS "Routine" (
   "type" "RoutineType" NOT NULL DEFAULT 'ACTIVITY',
   "period" TEXT NOT NULL DEFAULT 'ANYTIME',
   "daysOfWeek" TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6',
+  "specificDate" TEXT,
   "startTime" TEXT,
   "endTime" TEXT,
   "order" INTEGER NOT NULL DEFAULT 0,
@@ -162,6 +163,8 @@ CREATE TABLE IF NOT EXISTS "Routine" (
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "Routine_pkey" PRIMARY KEY ("id")
 );
+
+ALTER TABLE "Routine" ADD COLUMN IF NOT EXISTS "specificDate" TEXT;
 
 CREATE TABLE IF NOT EXISTS "RoutineLog" (
   "id" TEXT NOT NULL,
@@ -179,6 +182,7 @@ CREATE TABLE IF NOT EXISTS "RoutineLog" (
 );
 
 CREATE INDEX IF NOT EXISTS "Routine_userId_deletedAt_idx" ON "Routine"("userId", "deletedAt");
+CREATE INDEX IF NOT EXISTS "Routine_specificDate_idx" ON "Routine"("specificDate");
 CREATE INDEX IF NOT EXISTS "RoutineLog_userId_date_idx" ON "RoutineLog"("userId", "date");
 CREATE INDEX IF NOT EXISTS "RoutineLog_routineId_date_idx" ON "RoutineLog"("routineId", "date");
 

@@ -27,6 +27,8 @@ model User {
   transactions  Transaction[]
   categories    Category[]
   goals         Goal[]
+  routines      Routine[]
+  routineLogs   RoutineLog[]
 }
 
 model Account {
@@ -318,3 +320,57 @@ model Goal {
   @@index([userId, deletedAt])
   @@index([type])
 }
+
+// ─── Rotinas, Cronograma e Hábitos ──────────────────────────────────────
+
+enum RoutineType {
+  ACTIVITY
+  BREAK_REST
+  GENERAL
+}
+
+model Routine {
+  id           String      @id @default(cuid())
+  userId       String
+  title        String
+  description  String?
+  icon         String?
+  type         RoutineType @default(ACTIVITY)
+  period       String      @default("ANYTIME")
+  daysOfWeek   String      @default("0,1,2,3,4,5,6")
+  specificDate String?     // Data específica YYYY-MM-DD para tarefas pontuais (não recorrentes)
+  startTime    String?
+  endTime      String?
+  order        Int         @default(0)
+  deletedAt    DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs RoutineLog[]
+
+  @@index([userId, deletedAt])
+  @@index([type])
+  @@index([specificDate])
+}
+
+model RoutineLog {
+  id        String   @id @default(cuid())
+  routineId String?
+  userId    String
+  date      String   // Data YYYY-MM-DD
+  title     String?
+  startTime String?
+  endTime   String?
+  status    String   @default("COMPLETED") // COMPLETED, FAILED, UNEXPECTED_EVENT
+  notes     String?
+  isAdHoc   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  routine Routine? @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([routineId, date])
+}
+

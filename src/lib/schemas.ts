@@ -255,6 +255,7 @@ export const routineSchema = z.object({
   type: z.enum(["ACTIVITY", "BREAK_REST", "GENERAL"]).default("ACTIVITY"),
   period: z.enum(["MORNING", "AFTERNOON", "EVENING", "ANYTIME"]).default("ANYTIME"),
   daysOfWeek: z.string().default("0,1,2,3,4,5,6"),
+  specificDate: z.string().optional(),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
   order: z.coerce.number().int().default(0),
