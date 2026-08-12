@@ -11,6 +11,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   Target,
+  Calendar,
   Settings,
   LogOut,
   Menu,
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/recebimentos", label: "Recebimentos", icon: Banknote },
   { href: "/movimentacoes", label: "Movimentações", icon: ArrowLeftRight },
   { href: "/metas", label: "Metas", icon: Target },
+  { href: "/rotina", label: "Rotina", icon: Calendar },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];

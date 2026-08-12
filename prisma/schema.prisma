@@ -307,7 +307,6 @@ model Goal {
   selectedDays  String?
   startDate     DateTime? @db.Date
   targetDate    DateTime? @db.Date
-  checkIns      String?
   isCompleted   Boolean   @default(false)
   completedAt   DateTime?
   deletedAt     DateTime?

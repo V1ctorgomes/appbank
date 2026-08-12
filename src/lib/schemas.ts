@@ -248,3 +248,27 @@ export const goalSchema = z.object({
 
 export type GoalInput = z.infer<typeof goalSchema>;
 
+export const routineSchema = z.object({
+  title: z.string().min(1, "Título é obrigatório"),
+  description: z.string().optional(),
+  icon: z.string().optional(),
+  type: z.enum(["ACTIVITY", "BREAK_REST", "GENERAL"]).default("ACTIVITY"),
+  period: z.enum(["MORNING", "AFTERNOON", "EVENING", "ANYTIME"]).default("ANYTIME"),
+  daysOfWeek: z.string().default("0,1,2,3,4,5,6"),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  order: z.coerce.number().int().default(0),
+});
+
+export type RoutineInput = z.infer<typeof routineSchema>;
+
+export const adHocLogSchema = z.object({
+  date: z.string().min(1, "Data é obrigatória"),
+  title: z.string().min(1, "Título é obrigatório"),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export type AdHocLogInput = z.infer<typeof adHocLogSchema>;
+

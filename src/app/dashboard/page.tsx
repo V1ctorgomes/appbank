@@ -3,6 +3,7 @@ import { StatCard, Card } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getDashboardData } from "@/actions/dashboard";
 import { GoalsWidget } from "@/components/dashboard/goals-widget";
+import { RoutineWidget } from "@/components/dashboard/routine-widget";
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
@@ -72,8 +73,9 @@ export default async function DashboardPage() {
           </Card>
         </div>
 
-        <div>
+        <div className="space-y-6">
           <GoalsWidget />
+          <RoutineWidget />
         </div>
       </div>
     </AppLayout>

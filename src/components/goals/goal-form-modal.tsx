@@ -184,12 +184,12 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
                 type === "LOAN_COUNT"
                   ? "Ex: Atingir 10 empréstimos simultâneos"
                   : type === "LOAN_PORTFOLIO"
-                  ? "Ex: Manter R$ 15.000 emprestados simultaneamente"
-                  : type === "SAVINGS_TARGET"
-                  ? "Ex: Viagem no final do ano"
-                  : type === "EXPENSE_STREAK"
-                  ? "Ex: Ficar 7 dias sem registrar despesas"
-                  : "Ex: Organizar recibos dos clientes"
+                    ? "Ex: Manter R$ 15.000 emprestados simultaneamente"
+                    : type === "SAVINGS_TARGET"
+                      ? "Ex: Viagem no final do ano"
+                      : type === "EXPENSE_STREAK"
+                        ? "Ex: Ficar 7 dias sem registrar despesas"
+                        : "Ex: Organizar recibos dos clientes"
               }
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -230,13 +230,11 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
             </div>
           )}
 
-          {(type === "EXPENSE_STREAK" || type === "MANUAL_CHECKLIST") && (
+          {type === "EXPENSE_STREAK" && (
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {type === "MANUAL_CHECKLIST"
-                    ? "Quantidade Alvo de Check-ins (Dias Concluídos) *"
-                    : "Quantidade de Dias sem Gastar *"}
+                  Quantidade de Dias sem Gastar *
                 </label>
                 <Input
                   type="number"
@@ -288,11 +286,10 @@ export function GoalFormModal({ isOpen, onClose, goalToEdit }: GoalFormModalProp
                         key={day.id}
                         type="button"
                         onClick={() => toggleDay(day.id)}
-                        className={`flex-1 rounded-lg py-2 text-xs font-bold transition-all ${
-                          isSelected
+                        className={`flex-1 rounded-lg py-2 text-xs font-bold transition-all ${isSelected
                             ? "bg-blue-600 text-white shadow-sm"
                             : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                        }`}
+                          }`}
                       >
                         {day.label}
                       </button>

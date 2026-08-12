@@ -129,13 +129,73 @@ CREATE TABLE IF NOT EXISTS "Goal" (
 
 ALTER TABLE "Goal" ADD COLUMN IF NOT EXISTS "selectedDays" TEXT;
 ALTER TABLE "Goal" ADD COLUMN IF NOT EXISTS "startDate" DATE;
-ALTER TABLE "Goal" ADD COLUMN IF NOT EXISTS "checkIns" TEXT;
 
 CREATE INDEX IF NOT EXISTS "Goal_userId_deletedAt_idx" ON "Goal"("userId", "deletedAt");
 CREATE INDEX IF NOT EXISTS "Goal_type_idx" ON "Goal"("type");
 
 DO $$ BEGIN
   ALTER TABLE "Goal" ADD CONSTRAINT "Goal_userId_fkey"
+    FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Garante tabelas do módulo de Rotinas & Hábitos (idempotente)
+DO $$ BEGIN
+  CREATE TYPE "RoutineType" AS ENUM ('ACTIVITY', 'BREAK_REST', 'GENERAL');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS "Routine" (
+  "id" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  "title" TEXT NOT NULL,
+  "description" TEXT,
+  "icon" TEXT,
+  "type" "RoutineType" NOT NULL DEFAULT 'ACTIVITY',
+  "period" TEXT NOT NULL DEFAULT 'ANYTIME',
+  "daysOfWeek" TEXT NOT NULL DEFAULT '0,1,2,3,4,5,6',
+  "startTime" TEXT,
+  "endTime" TEXT,
+  "order" INTEGER NOT NULL DEFAULT 0,
+  "deletedAt" TIMESTAMP(3),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  CONSTRAINT "Routine_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "RoutineLog" (
+  "id" TEXT NOT NULL,
+  "routineId" TEXT,
+  "userId" TEXT NOT NULL,
+  "date" TEXT NOT NULL,
+  "title" TEXT,
+  "startTime" TEXT,
+  "endTime" TEXT,
+  "status" TEXT NOT NULL DEFAULT 'COMPLETED',
+  "notes" TEXT,
+  "isAdHoc" BOOLEAN NOT NULL DEFAULT false,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "RoutineLog_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "Routine_userId_deletedAt_idx" ON "Routine"("userId", "deletedAt");
+CREATE INDEX IF NOT EXISTS "RoutineLog_userId_date_idx" ON "RoutineLog"("userId", "date");
+CREATE INDEX IF NOT EXISTS "RoutineLog_routineId_date_idx" ON "RoutineLog"("routineId", "date");
+
+DO $$ BEGIN
+  ALTER TABLE "Routine" ADD CONSTRAINT "Routine_userId_fkey"
+    FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "RoutineLog" ADD CONSTRAINT "RoutineLog_routineId_fkey"
+    FOREIGN KEY ("routineId") REFERENCES "Routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "RoutineLog" ADD CONSTRAINT "RoutineLog_userId_fkey"
     FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
