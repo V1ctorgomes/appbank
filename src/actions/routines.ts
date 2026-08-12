@@ -196,8 +196,9 @@ export async function getRoutinesForDate(dateStr?: string) {
       return 0;
     });
 
-    const total = items.length;
-    const completed = items.filter((i: any) => i.status === "COMPLETED").length;
+    const nonContinuationItems = items.filter((i: any) => !i.isOvernightContinuation);
+    const total = nonContinuationItems.length;
+    const completed = nonContinuationItems.filter((i: any) => i.status === "COMPLETED").length;
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     return {

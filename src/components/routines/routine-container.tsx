@@ -237,7 +237,7 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
       ) : (
         /* VISÃO LISTA / TIMELINE */
         <div className="space-y-3">
-          {data.items.length === 0 ? (
+          {data.items.filter((item: any) => !item.isOvernightContinuation).length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-12 px-4 text-center">
               <div className="rounded-full bg-blue-50 p-4 text-blue-600 mb-3">
                 <ListTodo className="h-8 w-8" />
@@ -262,12 +262,14 @@ export function RoutineContainer({ initialData }: RoutineContainerProps) {
               </div>
             </div>
           ) : (
-            data.items.map((item) => (
+            data.items
+              .filter((item: any) => !item.isOvernightContinuation)
+              .map((item: any) => (
               <RoutineCard
                 key={item.id}
                 item={item}
                 dateStr={selectedDateStr}
-                onEdit={(routine) => {
+                onEdit={(routine: any) => {
                   setRoutineToEdit(routine);
                   setInitialStartTime(undefined);
                   setShowRoutineModal(true);

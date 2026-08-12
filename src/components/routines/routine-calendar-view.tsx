@@ -518,9 +518,9 @@ export function RoutineCalendarView({
                   </div>
 
                   <div className="text-[10px] text-slate-500 truncate">
-                    {d.isSelected && items.length > 0 && (
+                    {d.isSelected && items.filter((item) => !item.isOvernightContinuation).length > 0 && (
                       <span className="inline-flex items-center gap-1 font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">
-                        {items.length} rotinas
+                        {items.filter((item) => !item.isOvernightContinuation).length} rotinas
                       </span>
                     )}
                   </div>
