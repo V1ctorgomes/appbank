@@ -106,7 +106,87 @@ export async function getRoutinesForDate(dateStr?: string) {
       });
     });
 
+    // 3. Busca tarefas/rotinas pernoite do DIA ANTERIOR que avançam após as 06:00 do dia atual
+    const prevDateObj = new Date(dateObj);
+    prevDateObj.setUTCDate(dateObj.getUTCDate() - 1);
+    const prevDateStr = toDateKey(prevDateObj);
+    const prevDayOfWeek = prevDateObj.getUTCDay().toString();
 
+    const prevDayOvernightRoutines = allRoutines.filter((r: any) => {
+      if (!r.startTime || !r.endTime) return false;
+      const [h1, m1] = r.startTime.split(":").map(Number);
+      const [h2, m2] = r.endTime.split(":").map(Number);
+      const isOvernight = (h2 * 60 + m2) <= (h1 * 60 + m1);
+      const endsAfterSixAM = (h2 * 60 + m2) > (6 * 60);
+      if (!isOvernight || !endsAfterSixAM) return false;
+
+      if (r.specificDate) {
+        return r.specificDate === prevDateStr;
+      }
+      if (!r.daysOfWeek || r.daysOfWeek.trim() === "") return false;
+      const days = r.daysOfWeek.split(",").map((d: string) => d.trim()).filter(Boolean);
+      return days.includes(prevDayOfWeek);
+    });
+
+    const prevLogs = await db.routineLog.findMany({
+      where: {
+        userId: user.id,
+        date: prevDateStr,
+        isAdHoc: true,
+      },
+    });
+
+    const prevDayOvernightAdHocLogs = prevLogs.filter((log: any) => {
+      if (!log.startTime || !log.endTime) return false;
+      const [h1, m1] = log.startTime.split(":").map(Number);
+      const [h2, m2] = log.endTime.split(":").map(Number);
+      const isOvernight = (h2 * 60 + m2) <= (h1 * 60 + m1);
+      const endsAfterSixAM = (h2 * 60 + m2) > (6 * 60);
+      return isOvernight && endsAfterSixAM;
+    });
+
+    prevDayOvernightRoutines.forEach((routine: any) => {
+      const log = logsMap.get(routine.id);
+      items.push({
+        id: `cont-${routine.id}`,
+        routineId: routine.id,
+        title: routine.title,
+        description: routine.description,
+        icon: routine.icon,
+        type: routine.type,
+        period: routine.period,
+        daysOfWeek: routine.daysOfWeek,
+        specificDate: routine.specificDate || null,
+        startTime: routine.startTime,
+        endTime: routine.endTime,
+        isAdHoc: false,
+        isOvernightContinuation: true,
+        status: log ? log.status : "PENDING",
+        logId: log ? log.id : null,
+        notes: log ? log.notes : null,
+      });
+    });
+
+    prevDayOvernightAdHocLogs.forEach((log: any) => {
+      items.push({
+        id: `cont-${log.id}`,
+        routineId: null,
+        title: log.title || "Imprevisto registrado",
+        description: null,
+        icon: "zap",
+        type: "ACTIVITY",
+        period: "ANYTIME",
+        daysOfWeek: "",
+        specificDate: targetDateStr,
+        startTime: log.startTime,
+        endTime: log.endTime,
+        isAdHoc: true,
+        isOvernightContinuation: true,
+        status: log.status,
+        logId: log.id,
+        notes: log.notes,
+      });
+    });
 
     // Ordenação final por horário de início
     items.sort((a: any, b: any) => {
