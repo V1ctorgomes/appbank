@@ -8,11 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LoanPaymentButton } from "@/components/loans/loan-payment-modal";
+import { LoanInstallmentPaymentButton } from "@/components/loans/loan-installment-payment-modal";
 import { cancelLoanPayment, deleteLoan } from "@/actions/loans";
 import {
   calcMonthlyInterest,
   formatPaymentSchedule,
+  isInstallmentFrequency,
+  loanFrequencyLabel,
   loanPaymentTypeLabel,
+  settleTotalForLoan,
 } from "@/lib/loan-utils";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
@@ -23,8 +27,14 @@ interface LoanDetailProps {
     principal: unknown;
     remainingBalance: unknown;
     interestRate: unknown;
+    paymentFrequency: string;
     paymentDay: number;
+    paymentDay2: number | null;
+    weekday: number | null;
     billingStartMonth: Date;
+    billingStartDate: Date | null;
+    totalDue: unknown;
+    installmentCount: number | null;
     loanDate: Date;
     notes: string | null;
     status: string;
@@ -41,6 +51,14 @@ interface LoanDetailProps {
       balanceAfter: unknown;
       notes: string | null;
     }[];
+    installments: {
+      id: string;
+      number: number;
+      value: unknown;
+      dueDate: Date;
+      status: string;
+      paidAt: Date | null;
+    }[];
   };
 }
 
@@ -52,9 +70,28 @@ export function LoanDetail({ loan }: LoanDetailProps) {
   const balance = Number(loan.remainingBalance);
   const rate = Number(loan.interestRate);
   const interestDue = calcMonthlyInterest(balance, rate);
+  const isInstallment = isInstallmentFrequency(loan.paymentFrequency);
+  const settleTotal = settleTotalForLoan({
+    paymentFrequency: loan.paymentFrequency,
+    remainingBalance: balance,
+    interestRate: rate,
+  });
   const isActive = loan.status === "ACTIVE";
   const canEdit = isActive && loan.payments.length === 0;
   const latestPaymentId = loan.payments[0]?.id;
+
+  const loanPaymentInfo = {
+    id: loan.id,
+    clientName: loan.client.name,
+    remainingBalance: balance,
+    interestRate: rate,
+    paymentFrequency: loan.paymentFrequency,
+    paymentDay: loan.paymentDay,
+    paymentDay2: loan.paymentDay2,
+    weekday: loan.weekday,
+    billingStartMonth: loan.billingStartMonth,
+    billingStartDate: loan.billingStartDate,
+  };
 
   async function handleCancelPayment(paymentId: string) {
     const confirmed = confirm(
@@ -99,7 +136,7 @@ export function LoanDetail({ loan }: LoanDetailProps) {
           <ArrowLeft className="mr-1 h-4 w-4" />
           Voltar
         </Link>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {canEdit && (
             <Link href={`/emprestimos/${loan.id}/editar`}>
               <Button variant="secondary" size="sm">
@@ -110,15 +147,10 @@ export function LoanDetail({ loan }: LoanDetailProps) {
           )}
           {isActive && (
             <LoanPaymentButton
-              loan={{
-                id: loan.id,
-                clientName: loan.client.name,
-                remainingBalance: balance,
-                interestRate: rate,
-                paymentDay: loan.paymentDay,
-                billingStartMonth: loan.billingStartMonth,
-              }}
+              loan={loanPaymentInfo}
               size="sm"
+              mode={isInstallment ? "settle" : "normal"}
+              label={isInstallment ? "Quitar" : undefined}
             />
           )}
           {canEdit && (
@@ -151,9 +183,7 @@ export function LoanDetail({ loan }: LoanDetailProps) {
             <StatusBadge status={loan.status} />
           </div>
 
-          {loan.notes && (
-            <p className="mt-4 text-slate-700">{loan.notes}</p>
-          )}
+          {loan.notes && <p className="mt-4 text-slate-700">{loan.notes}</p>}
 
           <dl className="mt-6 grid gap-4 sm:grid-cols-2">
             <div>
@@ -163,7 +193,9 @@ export function LoanDetail({ loan }: LoanDetailProps) {
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium uppercase text-slate-400">Saldo restante</dt>
+              <dt className="text-xs font-medium uppercase text-slate-400">
+                {isInstallment ? "Saldo em aberto" : "Saldo restante"}
+              </dt>
               <dd className="mt-1 text-lg font-semibold text-slate-900">
                 {formatCurrency(balance)}
               </dd>
@@ -173,14 +205,33 @@ export function LoanDetail({ loan }: LoanDetailProps) {
               <dd className="mt-1 text-lg font-semibold text-slate-900">{rate}%</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium uppercase text-slate-400">
-                Cobrança
-              </dt>
+              <dt className="text-xs font-medium uppercase text-slate-400">Frequência</dt>
               <dd className="mt-1 text-lg font-semibold text-slate-900">
-                {formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth)}
+                {loanFrequencyLabel(loan.paymentFrequency)}
               </dd>
             </div>
-            {isActive && (
+            <div>
+              <dt className="text-xs font-medium uppercase text-slate-400">Cobrança</dt>
+              <dd className="mt-1 text-lg font-semibold text-slate-900">
+                {formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth, {
+                  paymentFrequency: loan.paymentFrequency,
+                  weekday: loan.weekday,
+                  paymentDay2: loan.paymentDay2,
+                  billingStartDate: loan.billingStartDate,
+                })}
+              </dd>
+            </div>
+            {isInstallment && loan.totalDue != null && (
+              <div>
+                <dt className="text-xs font-medium uppercase text-slate-400">
+                  Total do ciclo
+                </dt>
+                <dd className="mt-1 text-lg font-semibold text-slate-900">
+                  {formatCurrency(Number(loan.totalDue))}
+                </dd>
+              </div>
+            )}
+            {isActive && !isInstallment && (
               <div>
                 <dt className="text-xs font-medium uppercase text-slate-400">
                   Juros deste mês
@@ -202,37 +253,96 @@ export function LoanDetail({ loan }: LoanDetailProps) {
         </Card>
 
         <Card title="Como receber">
-          <ul className="space-y-2 text-sm text-slate-600">
-            <li>
-              <strong className="text-slate-800">Só juros:</strong> paga{" "}
-              {formatCurrency(interestDue)} — dívida permanece.
-            </li>
-            <li>
-              <strong className="text-slate-800">Juros + parcial:</strong> paga mais que o
-              juros — o excedente abate a dívida e o próximo juros é recalculado.
-            </li>
-            <li>
-              <strong className="text-slate-800">Quitação:</strong> paga juros + saldo (
-              {formatCurrency(balance + interestDue)}).
-            </li>
-          </ul>
+          {isInstallment ? (
+            <ul className="space-y-2 text-sm text-slate-600">
+              <li>
+                <strong className="text-slate-800">Parcela:</strong> receba cada
+                parcela na data de vencimento.
+              </li>
+              <li>
+                <strong className="text-slate-800">Quitação:</strong> paga o saldo em
+                aberto ({formatCurrency(settleTotal)}) e encerra o empréstimo.
+              </li>
+            </ul>
+          ) : (
+            <ul className="space-y-2 text-sm text-slate-600">
+              <li>
+                <strong className="text-slate-800">Só juros:</strong> paga{" "}
+                {formatCurrency(interestDue)} — dívida permanece.
+              </li>
+              <li>
+                <strong className="text-slate-800">Juros + parcial:</strong> paga mais
+                que o juros — o excedente abate a dívida.
+              </li>
+              <li>
+                <strong className="text-slate-800">Quitação:</strong> paga juros + saldo
+                ({formatCurrency(settleTotal)}).
+              </li>
+            </ul>
+          )}
           {isActive && (
             <div className="mt-4">
               <LoanPaymentButton
-                loan={{
-                  id: loan.id,
-                  clientName: loan.client.name,
-                  remainingBalance: balance,
-                  interestRate: rate,
-                  paymentDay: loan.paymentDay,
-                  billingStartMonth: loan.billingStartMonth,
-                }}
+                loan={loanPaymentInfo}
                 size="md"
+                mode={isInstallment ? "settle" : "normal"}
+                label={isInstallment ? "Quitar tudo" : undefined}
               />
             </div>
           )}
         </Card>
       </div>
+
+      {isInstallment && (
+        <Card title="Parcelas" className="mb-8">
+          {loan.installments.length === 0 ? (
+            <p className="text-sm text-slate-500">Nenhuma parcela gerada.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-500">
+                    <th className="pb-3 font-medium">#</th>
+                    <th className="pb-3 font-medium">Vencimento</th>
+                    <th className="pb-3 font-medium">Valor</th>
+                    <th className="pb-3 font-medium">Status</th>
+                    <th className="pb-3 font-medium">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loan.installments.map((inst) => (
+                    <tr key={inst.id} className="border-t border-slate-100">
+                      <td className="py-3 text-slate-600">{inst.number}</td>
+                      <td className="py-3 text-slate-600">{formatDate(inst.dueDate)}</td>
+                      <td className="py-3 font-medium text-slate-800">
+                        {formatCurrency(Number(inst.value))}
+                      </td>
+                      <td className="py-3">
+                        <StatusBadge status={inst.status} />
+                      </td>
+                      <td className="py-3">
+                        {isActive &&
+                          (inst.status === "PENDING" || inst.status === "OVERDUE") && (
+                            <LoanInstallmentPaymentButton
+                              installment={{
+                                id: inst.id,
+                                number: inst.number,
+                                value: Number(inst.value),
+                                dueDate: inst.dueDate.toISOString(),
+                                clientName: loan.client.name,
+                                loanId: loan.id,
+                              }}
+                            />
+                          )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card title="Histórico de pagamentos">
         {loan.payments.length === 0 ? (

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatCurrency, formatDate, formatCpf } from "@/lib/utils";
-import { formatPaymentSchedule } from "@/lib/loan-utils";
+import { formatPaymentSchedule, isInstallmentFrequency, loanFrequencyLabel } from "@/lib/loan-utils";
 import { Search } from "lucide-react";
 
 function maskCpf(value: string) {
@@ -78,7 +78,13 @@ function ConsultaResult({ data }: { data: PortalClientData }) {
                     </p>
                     <p className="text-sm text-slate-500">
                       Principal {formatCurrency(loan.principal)} · Juros {loan.interestRate}%
-                      a.m. · {formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth)}
+                      a.m. · {loanFrequencyLabel(loan.paymentFrequency)} ·{" "}
+                      {formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth, {
+                        paymentFrequency: loan.paymentFrequency,
+                        weekday: loan.weekday,
+                        paymentDay2: loan.paymentDay2,
+                        billingStartDate: loan.billingStartDate,
+                      })}
                     </p>
                   </div>
                   <StatusBadge status={loan.status} />
@@ -90,12 +96,14 @@ function ConsultaResult({ data }: { data: PortalClientData }) {
                       {formatCurrency(loan.remainingBalance)}
                     </dd>
                   </div>
-                  <div>
-                    <dt className="text-slate-500">Juros do mês</dt>
-                    <dd className="font-semibold text-amber-700">
-                      {formatCurrency(loan.monthlyInterest)}
-                    </dd>
-                  </div>
+                  {!isInstallmentFrequency(loan.paymentFrequency) && (
+                    <div>
+                      <dt className="text-slate-500">Juros do mês</dt>
+                      <dd className="font-semibold text-amber-700">
+                        {formatCurrency(loan.monthlyInterest)}
+                      </dd>
+                    </div>
+                  )}
                   <div>
                     <dt className="text-slate-500">Para quitar agora</dt>
                     <dd className="font-semibold text-slate-900">
@@ -105,10 +113,43 @@ function ConsultaResult({ data }: { data: PortalClientData }) {
                   <div>
                     <dt className="text-slate-500">Próximo vencimento</dt>
                     <dd className="font-semibold text-slate-900">
-                      {formatDate(loan.nextDueDate)}
+                      {loan.nextDueDate ? formatDate(loan.nextDueDate) : "—"}
                     </dd>
                   </div>
                 </dl>
+                {loan.installments.length > 0 && (
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-left text-slate-500">
+                          <th className="pb-2 font-medium">Parcela</th>
+                          <th className="pb-2 font-medium">Valor</th>
+                          <th className="pb-2 font-medium">Vencimento</th>
+                          <th className="pb-2 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {loan.installments
+                          .filter((i) => i.status === "PENDING" || i.status === "OVERDUE")
+                          .map((inst) => (
+                            <tr
+                              key={`${inst.number}-${inst.dueDate}`}
+                              className="border-b border-slate-100"
+                            >
+                              <td className="py-2">#{inst.number}</td>
+                              <td className="py-2 font-medium">
+                                {formatCurrency(inst.value)}
+                              </td>
+                              <td className="py-2">{formatDate(inst.dueDate)}</td>
+                              <td className="py-2">
+                                <StatusBadge status={inst.status} />
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             ))}
           </div>

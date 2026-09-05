@@ -190,24 +190,104 @@ export const paymentSchema = z.object({
 
 export type PaymentInput = z.infer<typeof paymentSchema>;
 
-export const createLoanSchema = z.object({
-  clientId: z.string().min(1, "Cliente é obrigatório"),
-  principal: z.coerce.number().positive("Valor do empréstimo deve ser maior que zero"),
-  interestRate: z.coerce
-    .number()
-    .min(0, "Juros não pode ser negativo")
-    .max(100, "Juros mensal máximo é 100%"),
-  paymentDay: z.coerce
-    .number()
-    .int("Dia do pagamento deve ser um número inteiro")
-    .min(1, "Dia do pagamento deve ser entre 1 e 31")
-    .max(31, "Dia do pagamento deve ser entre 1 e 31"),
-  billingStartMonth: z
-    .string()
-    .regex(/^\d{4}-\d{2}$/, "Informe o mês de início da cobrança"),
-  loanDate: z.string().min(1, "Data do empréstimo é obrigatória"),
-  notes: z.string().optional(),
-});
+export const createLoanSchema = z
+  .object({
+    clientId: z.string().min(1, "Cliente é obrigatório"),
+    principal: z.coerce.number().positive("Valor do empréstimo deve ser maior que zero"),
+    interestRate: z.coerce
+      .number()
+      .min(0, "Juros não pode ser negativo")
+      .max(100, "Juros mensal máximo é 100%"),
+    paymentFrequency: z.enum(["MONTHLY", "WEEKLY", "DAILY", "BIWEEKLY"]).default("MONTHLY"),
+    paymentDay: z.coerce
+      .number()
+      .int("Dia do pagamento deve ser um número inteiro")
+      .min(1, "Dia do pagamento deve ser entre 1 e 31")
+      .max(31, "Dia do pagamento deve ser entre 1 e 31")
+      .optional(),
+    paymentDay2: z.coerce
+      .number()
+      .int("Segundo dia deve ser um número inteiro")
+      .min(1, "Segundo dia deve ser entre 1 e 31")
+      .max(31, "Segundo dia deve ser entre 1 e 31")
+      .optional(),
+    weekday: z.coerce
+      .number()
+      .int()
+      .min(0, "Dia da semana inválido")
+      .max(6, "Dia da semana inválido")
+      .optional(),
+    billingStartMonth: z
+      .string()
+      .regex(/^\d{4}-\d{2}$/, "Informe o mês de início da cobrança")
+      .optional(),
+    billingStartDate: z.string().optional(),
+    loanDate: z.string().min(1, "Data do empréstimo é obrigatória"),
+    notes: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.paymentFrequency === "MONTHLY") {
+      if (!data.billingStartMonth) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe o mês de início da cobrança",
+          path: ["billingStartMonth"],
+        });
+      }
+      if (data.paymentDay == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Dia do pagamento é obrigatório",
+          path: ["paymentDay"],
+        });
+      }
+      return;
+    }
+
+    if (!data.billingStartDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Informe a data de início da cobrança",
+        path: ["billingStartDate"],
+      });
+    }
+
+    if (data.paymentFrequency === "WEEKLY" && data.weekday == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Escolha o dia da semana",
+        path: ["weekday"],
+      });
+    }
+
+    if (data.paymentFrequency === "BIWEEKLY") {
+      if (data.paymentDay == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe o primeiro dia do mês",
+          path: ["paymentDay"],
+        });
+      }
+      if (data.paymentDay2 == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe o segundo dia do mês",
+          path: ["paymentDay2"],
+        });
+      }
+      if (
+        data.paymentDay != null &&
+        data.paymentDay2 != null &&
+        data.paymentDay === data.paymentDay2
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Os dois dias da quinzena devem ser diferentes",
+          path: ["paymentDay2"],
+        });
+      }
+    }
+  });
 
 export type CreateLoanInput = z.infer<typeof createLoanSchema>;
 
@@ -220,9 +300,19 @@ export const loanPaymentSchema = z.object({
   paymentDate: z.string().min(1, "Data do pagamento é obrigatória"),
   value: z.coerce.number().positive("Valor pago deve ser maior que zero"),
   notes: z.string().optional(),
+  settle: z.boolean().optional(),
 });
 
 export type LoanPaymentInput = z.infer<typeof loanPaymentSchema>;
+
+export const loanInstallmentPaymentSchema = z.object({
+  loanInstallmentId: z.string().min(1, "Parcela é obrigatória"),
+  paymentDate: z.string().min(1, "Data do pagamento é obrigatória"),
+  value: z.coerce.number().positive("Valor pago deve ser maior que zero"),
+  notes: z.string().optional(),
+});
+
+export type LoanInstallmentPaymentInput = z.infer<typeof loanInstallmentPaymentSchema>;
 
 export const goalSchema = z.object({
   title: z.string().min(1, "Título é obrigatório"),

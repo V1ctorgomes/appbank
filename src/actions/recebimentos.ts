@@ -12,7 +12,7 @@ import {
 import type { RecebimentoTipo } from "@/lib/recebimentos";
 
 export type PendingRecebimento = {
-  kind: "sale" | "loan";
+  kind: "sale" | "loan" | "loan_installment";
   id: string;
   clientId: string;
   clientName: string;
@@ -26,8 +26,16 @@ export type PendingRecebimento = {
   loan?: {
     remainingBalance: number;
     interestRate: number;
+    paymentFrequency: string;
     paymentDay: number;
+    paymentDay2?: number | null;
+    weekday?: number | null;
     billingStartMonth: string;
+    billingStartDate?: string | null;
+  };
+  loanInstallment?: {
+    loanId: string;
+    number: number;
   };
 };
 
@@ -104,14 +112,19 @@ export async function getPendingRecebimentos(
         userId: user.id,
         deletedAt: null,
         status: "ACTIVE",
+        paymentFrequency: "MONTHLY",
         billingStartMonth: { lte: end },
       },
       select: {
         id: true,
         remainingBalance: true,
         interestRate: true,
+        paymentFrequency: true,
         paymentDay: true,
+        paymentDay2: true,
+        weekday: true,
         billingStartMonth: true,
+        billingStartDate: true,
         client: { select: { id: true, name: true } },
         payments: {
           where: {
@@ -156,8 +169,57 @@ export async function getPendingRecebimentos(
         loan: {
           remainingBalance: Number(loan.remainingBalance),
           interestRate: Number(loan.interestRate),
+          paymentFrequency: loan.paymentFrequency,
           paymentDay: loan.paymentDay,
+          paymentDay2: loan.paymentDay2,
+          weekday: loan.weekday,
           billingStartMonth: loan.billingStartMonth.toISOString(),
+          billingStartDate: loan.billingStartDate?.toISOString() ?? null,
+        },
+      });
+    }
+
+    const loanInstallments = await prisma.loanInstallment.findMany({
+      where: {
+        deletedAt: null,
+        status: { in: ["PENDING", "OVERDUE"] },
+        dueDate: { gte: start, lte: end },
+        loan: {
+          userId: user.id,
+          deletedAt: null,
+          status: "ACTIVE",
+        },
+      },
+      select: {
+        id: true,
+        number: true,
+        value: true,
+        dueDate: true,
+        status: true,
+        loanId: true,
+        loan: {
+          select: {
+            client: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: [{ dueDate: "asc" }, { number: "asc" }],
+    });
+
+    for (const inst of loanInstallments) {
+      items.push({
+        kind: "loan_installment",
+        id: inst.id,
+        clientId: inst.loan.client.id,
+        clientName: inst.loan.client.name,
+        label: `Parcela #${inst.number}`,
+        value: Number(inst.value),
+        dueDate: inst.dueDate.toISOString(),
+        status: inst.status,
+        href: `/emprestimos/${inst.loanId}`,
+        loanInstallment: {
+          loanId: inst.loanId,
+          number: inst.number,
         },
       });
     }

@@ -214,32 +214,68 @@ enum LoanPaymentType {
   INTEREST_ONLY
   INTEREST_AND_PARTIAL
   FULL_SETTLEMENT
+  INSTALLMENT
+}
+
+enum LoanPaymentFrequency {
+  MONTHLY
+  WEEKLY
+  DAILY
+  BIWEEKLY
 }
 
 model Loan {
-  id               String     @id @default(cuid())
-  userId           String
-  clientId         String
-  principal        Decimal    @db.Decimal(12, 2)
-  remainingBalance Decimal    @db.Decimal(12, 2)
-  interestRate     Decimal    @db.Decimal(7, 2)
-  paymentDay       Int
-  billingStartMonth DateTime  @db.Date
-  loanDate         DateTime   @db.Date
-  notes            String?
-  status           LoanStatus @default(ACTIVE)
-  settledAt        DateTime?
-  deletedAt        DateTime?
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  id                String                @id @default(cuid())
+  userId            String
+  clientId          String
+  principal         Decimal               @db.Decimal(12, 2)
+  remainingBalance  Decimal               @db.Decimal(12, 2)
+  interestRate      Decimal               @db.Decimal(7, 2)
+  paymentFrequency  LoanPaymentFrequency  @default(MONTHLY)
+  paymentDay        Int
+  paymentDay2       Int?
+  weekday           Int?
+  billingStartMonth DateTime              @db.Date
+  billingStartDate  DateTime?             @db.Date
+  totalDue          Decimal?              @db.Decimal(12, 2)
+  installmentCount  Int?
+  loanDate          DateTime              @db.Date
+  notes             String?
+  status            LoanStatus            @default(ACTIVE)
+  settledAt         DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
 
-  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  client   Client        @relation(fields: [clientId], references: [id])
-  payments LoanPayment[]
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client       Client            @relation(fields: [clientId], references: [id])
+  payments     LoanPayment[]
+  installments LoanInstallment[]
 
   @@index([userId, deletedAt])
   @@index([clientId])
   @@index([status])
+}
+
+model LoanInstallment {
+  id            String            @id @default(cuid())
+  loanId        String
+  number        Int
+  value         Decimal           @db.Decimal(12, 2)
+  dueDate       DateTime          @db.Date
+  status        InstallmentStatus @default(PENDING)
+  paidAt        DateTime?
+  loanPaymentId String?
+  deletedAt     DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  loan        Loan         @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  loanPayment LoanPayment? @relation(fields: [loanPaymentId], references: [id])
+
+  @@index([loanId])
+  @@index([status, dueDate])
+  @@index([loanPaymentId])
 }
 
 model LoanPayment {
@@ -257,8 +293,9 @@ model LoanPayment {
   deletedAt      DateTime?
   createdAt      DateTime        @default(now())
 
-  loan         Loan          @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  loan         Loan              @relation(fields: [loanId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  installments LoanInstallment[]
 
   @@index([loanId])
   @@index([paymentDate])

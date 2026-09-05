@@ -8,7 +8,9 @@ import { registerLoanPayment } from "@/actions/loans";
 import {
   allocateLoanPayment,
   formatPaymentSchedule,
+  isInstallmentFrequency,
   loanPaymentTypeLabel,
+  settleTotalForLoan,
 } from "@/lib/loan-utils";
 import { formatCurrency } from "@/lib/utils";
 import { X } from "lucide-react";
@@ -18,17 +20,27 @@ export interface LoanPaymentInfo {
   clientName: string;
   remainingBalance: number;
   interestRate: number;
+  paymentFrequency?: string;
   paymentDay?: number;
+  paymentDay2?: number | null;
+  weekday?: number | null;
   billingStartMonth?: Date | string;
+  billingStartDate?: Date | string | null;
 }
 
 interface LoanPaymentModalProps {
   loan: LoanPaymentInfo;
   onClose: () => void;
+  mode?: "normal" | "settle";
 }
 
-export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
+export function LoanPaymentModal({
+  loan,
+  onClose,
+  mode = "normal",
+}: LoanPaymentModalProps) {
   const router = useRouter();
+  const isInstallment = isInstallmentFrequency(loan.paymentFrequency);
   const [paymentDate, setPaymentDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
@@ -38,16 +50,34 @@ export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
     [loan.remainingBalance, loan.interestRate]
   );
   const settleTotal = useMemo(
-    () => Math.round((loan.remainingBalance + interestDue) * 100) / 100,
-    [loan.remainingBalance, interestDue]
+    () =>
+      settleTotalForLoan({
+        paymentFrequency: loan.paymentFrequency ?? "MONTHLY",
+        remainingBalance: loan.remainingBalance,
+        interestRate: loan.interestRate,
+      }),
+    [loan.paymentFrequency, loan.remainingBalance, loan.interestRate]
   );
 
-  const [value, setValue] = useState(interestDue.toFixed(2));
+  const [value, setValue] = useState(
+    mode === "settle" || isInstallment
+      ? settleTotal.toFixed(2)
+      : interestDue.toFixed(2)
+  );
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const preview = useMemo(() => {
+    if (isInstallment) {
+      return {
+        type: "FULL_SETTLEMENT" as const,
+        interestValue: 0,
+        principalValue: settleTotal,
+        totalValue: settleTotal,
+        balanceAfter: 0,
+      };
+    }
     const paid = parseFloat(value);
     if (!paid || paid <= 0) return null;
     const result = allocateLoanPayment(
@@ -57,7 +87,7 @@ export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
     );
     if ("error" in result) return null;
     return result;
-  }, [value, loan.remainingBalance, loan.interestRate]);
+  }, [value, loan.remainingBalance, loan.interestRate, isInstallment, settleTotal]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,6 +99,7 @@ export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
       paymentDate,
       value: parseFloat(value),
       notes: notes || undefined,
+      settle: isInstallment || mode === "settle" || undefined,
     });
 
     if (result?.error) {
@@ -81,12 +112,26 @@ export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
     router.refresh();
   }
 
+  const scheduleLabel =
+    loan.paymentDay != null && loan.billingStartMonth != null
+      ? formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth, {
+          paymentFrequency: loan.paymentFrequency,
+          weekday: loan.weekday,
+          paymentDay2: loan.paymentDay2,
+          billingStartDate: loan.billingStartDate,
+        })
+      : null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Receber juros do mês</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              {isInstallment || mode === "settle"
+                ? "Quitar empréstimo"
+                : "Receber juros do mês"}
+            </h2>
             <p className="text-sm text-slate-500">{loan.clientName}</p>
           </div>
           <button
@@ -98,31 +143,25 @@ export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
           </button>
         </div>
 
-            <div className="mb-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm">
+        <div className="mb-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm">
           <div className="flex justify-between">
-            <span className="text-slate-500">Saldo da dívida</span>
+            <span className="text-slate-500">Saldo em aberto</span>
             <span className="font-medium text-slate-800">
               {formatCurrency(loan.remainingBalance)}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-slate-500">Juros mensal ({loan.interestRate}%)</span>
-            <span className="font-medium text-slate-800">
-              {formatCurrency(interestDue)}
-            </span>
-          </div>
-          {loan.paymentDay != null && loan.billingStartMonth != null && (
+          {!isInstallment && (
             <div className="flex justify-between">
-              <span className="text-slate-500">Cobrança</span>
-              <span className="font-medium text-slate-800 text-right">
-                {formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth)}
+              <span className="text-slate-500">Juros mensal ({loan.interestRate}%)</span>
+              <span className="font-medium text-slate-800">
+                {formatCurrency(interestDue)}
               </span>
             </div>
           )}
-          {loan.paymentDay != null && loan.billingStartMonth == null && (
+          {scheduleLabel && (
             <div className="flex justify-between">
-              <span className="text-slate-500">Dia do pagamento</span>
-              <span className="font-medium text-slate-800">Todo dia {loan.paymentDay}</span>
+              <span className="text-slate-500">Cobrança</span>
+              <span className="font-medium text-slate-800 text-right">{scheduleLabel}</span>
             </div>
           )}
           <div className="flex justify-between border-t border-slate-200 pt-2">
@@ -133,24 +172,26 @@ export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
           </div>
         </div>
 
-        <div className="mb-4 flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setValue(interestDue.toFixed(2))}
-          >
-            Só juros
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setValue(settleTotal.toFixed(2))}
-          >
-            Quitar tudo
-          </Button>
-        </div>
+        {!isInstallment && mode !== "settle" && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setValue(interestDue.toFixed(2))}
+            >
+              Só juros
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setValue(settleTotal.toFixed(2))}
+            >
+              Quitar tudo
+            </Button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
@@ -160,42 +201,54 @@ export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
             onChange={(e) => setPaymentDate(e.target.value)}
             required
           />
-          <Input
-            label="Quanto pagou? *"
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            required
-          />
-          <p className="text-xs text-slate-500">
-            O sistema identifica automaticamente: só juros, juros + amortização parcial,
-            ou quitação.
-          </p>
+          {!isInstallment && mode !== "settle" ? (
+            <Input
+              label="Quanto pagou? *"
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              required
+            />
+          ) : (
+            <Input
+              label="Valor da quitação *"
+              type="number"
+              step="0.01"
+              value={settleTotal.toFixed(2)}
+              readOnly
+            />
+          )}
+
+          {!isInstallment && mode !== "settle" && (
+            <p className="text-xs text-slate-500">
+              O sistema identifica automaticamente: só juros, juros + amortização parcial,
+              ou quitação.
+            </p>
+          )}
 
           {preview && (
             <div className="space-y-1.5 rounded-lg border border-primary-200 bg-primary-50/50 p-3 text-sm">
               <p className="font-medium text-primary-800">
                 {loanPaymentTypeLabel(preview.type)}
               </p>
-              <div className="flex justify-between text-slate-600">
-                <span>Juros</span>
-                <span>{formatCurrency(preview.interestValue)}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Amortização</span>
-                <span>{formatCurrency(preview.principalValue)}</span>
-              </div>
+              {!isInstallment && (
+                <>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Juros</span>
+                    <span>{formatCurrency(preview.interestValue)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Amortização</span>
+                    <span>{formatCurrency(preview.principalValue)}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between border-t border-primary-100 pt-1.5 font-medium text-slate-800">
                 <span>Novo saldo</span>
                 <span>{formatCurrency(preview.balanceAfter)}</span>
               </div>
-              {preview.type === "INTEREST_AND_PARTIAL" && (
-                <p className="pt-1 text-xs text-slate-500">
-                  Próximo juros será recalculado sobre {formatCurrency(preview.balanceAfter)}.
-                </p>
-              )}
             </div>
           )}
 
@@ -219,7 +272,11 @@ export function LoanPaymentModal({ loan, onClose }: LoanPaymentModalProps) {
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Registrando..." : "Confirmar recebimento"}
+              {loading
+                ? "Registrando..."
+                : isInstallment || mode === "settle"
+                  ? "Confirmar quitação"
+                  : "Confirmar recebimento"}
             </Button>
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancelar
@@ -235,22 +292,32 @@ interface LoanPaymentButtonProps {
   loan: LoanPaymentInfo;
   size?: "sm" | "md";
   label?: string;
+  mode?: "normal" | "settle";
 }
 
 export function LoanPaymentButton({
   loan,
   size = "sm",
-  label = "Receber juros do mês",
+  label,
+  mode = "normal",
 }: LoanPaymentButtonProps) {
   const [open, setOpen] = useState(false);
+  const isInstallment = isInstallmentFrequency(loan.paymentFrequency);
+  const buttonLabel =
+    label ??
+    (mode === "settle" || isInstallment ? "Quitar" : "Receber juros do mês");
 
   return (
     <>
       <Button size={size} onClick={() => setOpen(true)}>
-        {label}
+        {buttonLabel}
       </Button>
       {open && (
-        <LoanPaymentModal loan={loan} onClose={() => setOpen(false)} />
+        <LoanPaymentModal
+          loan={loan}
+          mode={mode}
+          onClose={() => setOpen(false)}
+        />
       )}
     </>
   );

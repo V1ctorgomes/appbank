@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PaymentButton } from "@/components/payments/payment-modal";
 import { LoanPaymentButton } from "@/components/loans/loan-payment-modal";
+import { LoanInstallmentPaymentButton } from "@/components/loans/loan-installment-payment-modal";
 import { RecebimentosMonthFilter } from "@/components/payments/recebimentos-month-filter";
 import {
   getPendingRecebimentos,
@@ -37,7 +38,7 @@ export default async function RecebimentosPage({ searchParams }: PageProps) {
     tipo === "vendas"
       ? "Parcelas de vendas do mês"
       : tipo === "emprestimos"
-        ? "Juros de empréstimos do mês"
+        ? "Empréstimos do mês selecionado"
         : "Vendas e empréstimos do mês selecionado";
 
   return (
@@ -86,12 +87,12 @@ export default async function RecebimentosPage({ searchParams }: PageProps) {
                     <td className="py-3">
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          item.kind === "loan"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-slate-100 text-slate-600"
+                          item.kind === "sale"
+                            ? "bg-slate-100 text-slate-600"
+                            : "bg-blue-100 text-blue-700"
                         }`}
                       >
-                        {item.kind === "loan" ? "Empréstimo" : "Venda"}
+                        {item.kind === "sale" ? "Venda" : "Empréstimo"}
                       </span>
                     </td>
                     <td className="py-3">
@@ -118,7 +119,9 @@ export default async function RecebimentosPage({ searchParams }: PageProps) {
                       <StatusBadge status={item.status} />
                     </td>
                     <td className="py-3">
-                      {item.kind === "sale" && item.saleId && item.installmentNumber != null ? (
+                      {item.kind === "sale" &&
+                      item.saleId &&
+                      item.installmentNumber != null ? (
                         <PaymentButton
                           installment={{
                             id: item.id,
@@ -136,11 +139,26 @@ export default async function RecebimentosPage({ searchParams }: PageProps) {
                             clientName: item.clientName,
                             remainingBalance: item.loan.remainingBalance,
                             interestRate: item.loan.interestRate,
+                            paymentFrequency: item.loan.paymentFrequency,
                             paymentDay: item.loan.paymentDay,
+                            paymentDay2: item.loan.paymentDay2,
+                            weekday: item.loan.weekday,
                             billingStartMonth: item.loan.billingStartMonth,
+                            billingStartDate: item.loan.billingStartDate,
                           }}
                           size="sm"
                           label="Receber"
+                        />
+                      ) : item.kind === "loan_installment" && item.loanInstallment ? (
+                        <LoanInstallmentPaymentButton
+                          installment={{
+                            id: item.id,
+                            number: item.loanInstallment.number,
+                            value: item.value,
+                            dueDate: item.dueDate,
+                            clientName: item.clientName,
+                            loanId: item.loanInstallment.loanId,
+                          }}
                         />
                       ) : null}
                     </td>
@@ -204,7 +222,7 @@ export default async function RecebimentosPage({ searchParams }: PageProps) {
                         {item.label}
                       </Link>
                     </td>
-                    <td className="py-3 font-medium text-green-700">
+                    <td className="py-3 font-medium text-slate-800">
                       {formatCurrency(item.value)}
                     </td>
                     <td className="py-3 text-slate-500">{item.notes || "—"}</td>

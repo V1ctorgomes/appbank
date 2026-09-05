@@ -11,6 +11,16 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
+  ALTER TYPE "LoanPaymentType" ADD VALUE IF NOT EXISTS 'INSTALLMENT';
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "LoanPaymentFrequency" AS ENUM ('MONTHLY', 'WEEKLY', 'DAILY', 'BIWEEKLY');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
   ALTER TYPE "TransactionOrigin" ADD VALUE IF NOT EXISTS 'LOAN_DISBURSEMENT';
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
@@ -49,6 +59,13 @@ DO $$ BEGIN
   ALTER TABLE "Loan" ALTER COLUMN "billingStartMonth" SET NOT NULL;
 EXCEPTION WHEN others THEN NULL;
 END $$;
+
+ALTER TABLE "Loan" ADD COLUMN IF NOT EXISTS "paymentFrequency" "LoanPaymentFrequency" NOT NULL DEFAULT 'MONTHLY';
+ALTER TABLE "Loan" ADD COLUMN IF NOT EXISTS "paymentDay2" INTEGER;
+ALTER TABLE "Loan" ADD COLUMN IF NOT EXISTS "weekday" INTEGER;
+ALTER TABLE "Loan" ADD COLUMN IF NOT EXISTS "billingStartDate" DATE;
+ALTER TABLE "Loan" ADD COLUMN IF NOT EXISTS "totalDue" DECIMAL(12,2);
+ALTER TABLE "Loan" ADD COLUMN IF NOT EXISTS "installmentCount" INTEGER;
 
 CREATE TABLE IF NOT EXISTS "LoanPayment" (
   "id" TEXT NOT NULL,
@@ -95,6 +112,42 @@ END $$;
 
 DO $$ BEGIN
   ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_loanPaymentId_fkey"
+    FOREIGN KEY ("loanPaymentId") REFERENCES "LoanPayment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "InstallmentStatus" AS ENUM ('PENDING', 'PAID', 'OVERDUE', 'CANCELLED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS "LoanInstallment" (
+  "id" TEXT NOT NULL,
+  "loanId" TEXT NOT NULL,
+  "number" INTEGER NOT NULL,
+  "value" DECIMAL(12,2) NOT NULL,
+  "dueDate" DATE NOT NULL,
+  "status" "InstallmentStatus" NOT NULL DEFAULT 'PENDING',
+  "paidAt" TIMESTAMP(3),
+  "loanPaymentId" TEXT,
+  "deletedAt" TIMESTAMP(3),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  CONSTRAINT "LoanInstallment_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "LoanInstallment_loanId_idx" ON "LoanInstallment"("loanId");
+CREATE INDEX IF NOT EXISTS "LoanInstallment_status_dueDate_idx" ON "LoanInstallment"("status", "dueDate");
+CREATE INDEX IF NOT EXISTS "LoanInstallment_loanPaymentId_idx" ON "LoanInstallment"("loanPaymentId");
+
+DO $$ BEGIN
+  ALTER TABLE "LoanInstallment" ADD CONSTRAINT "LoanInstallment_loanId_fkey"
+    FOREIGN KEY ("loanId") REFERENCES "Loan"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "LoanInstallment" ADD CONSTRAINT "LoanInstallment_loanPaymentId_fkey"
     FOREIGN KEY ("loanPaymentId") REFERENCES "LoanPayment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;

@@ -3,7 +3,12 @@
 import { prisma } from "@/lib/prisma";
 import { normalizeCpf, validateCpf } from "@/lib/validators";
 import { syncOverdueInstallments } from "@/lib/installments";
-import { calcMonthlyInterest, nextLoanDueDate } from "@/lib/loan-utils";
+import {
+  calcMonthlyInterest,
+  isInstallmentFrequency,
+  nextLoanDueDate,
+  settleTotalForLoan,
+} from "@/lib/loan-utils";
 
 export type PortalInstallment = {
   number: number;
@@ -25,12 +30,17 @@ export type PortalLoan = {
   principal: number;
   remainingBalance: number;
   interestRate: number;
+  paymentFrequency: string;
   paymentDay: number;
+  paymentDay2: number | null;
+  weekday: number | null;
   billingStartMonth: string;
+  billingStartDate: string | null;
   monthlyInterest: number;
   settleTotal: number;
   status: string;
-  nextDueDate: string;
+  nextDueDate: string | null;
+  installments: PortalInstallment[];
 };
 
 export type PortalClientData = {
@@ -120,9 +130,24 @@ export async function lookupClientByCpf(cpf: string): Promise<PortalLookupResult
         principal: true,
         remainingBalance: true,
         interestRate: true,
+        paymentFrequency: true,
         paymentDay: true,
+        paymentDay2: true,
+        weekday: true,
         billingStartMonth: true,
+        billingStartDate: true,
         status: true,
+        installments: {
+          where: { deletedAt: null, status: { not: "CANCELLED" } },
+          orderBy: { number: "asc" },
+          select: {
+            number: true,
+            value: true,
+            dueDate: true,
+            status: true,
+            paidAt: true,
+          },
+        },
       },
     }),
   ]);
@@ -176,25 +201,64 @@ export async function lookupClientByCpf(cpf: string): Promise<PortalLookupResult
   const loansData: PortalLoan[] = loans.map((loan) => {
     const remainingBalance = Number(loan.remainingBalance);
     const interestRate = Number(loan.interestRate);
-    const monthlyInterest = calcMonthlyInterest(remainingBalance, interestRate);
-    const settleTotal = remainingBalance + monthlyInterest;
-    const due = nextLoanDueDate(loan.paymentDay, loan.billingStartMonth);
+    const installmentMode = isInstallmentFrequency(loan.paymentFrequency);
+    const monthlyInterest = installmentMode
+      ? calcMonthlyInterest(Number(loan.principal), interestRate)
+      : calcMonthlyInterest(remainingBalance, interestRate);
+    const settleTotal = settleTotalForLoan({
+      paymentFrequency: loan.paymentFrequency,
+      remainingBalance,
+      interestRate,
+    });
 
-    totalDebt += remainingBalance;
-    pendingCount += 1;
-    considerNextDue(due);
+    const portalInstallments: PortalInstallment[] = loan.installments.map((inst) => {
+      const value = Number(inst.value);
+      if (inst.status === "PAID") {
+        totalPaid += value;
+      } else if (inst.status === "PENDING" || inst.status === "OVERDUE") {
+        if (inst.status === "OVERDUE") overdueCount += 1;
+        if (inst.status === "PENDING") pendingCount += 1;
+        considerNextDue(inst.dueDate);
+      }
+      return {
+        number: inst.number,
+        value,
+        dueDate: inst.dueDate.toISOString(),
+        status: inst.status,
+        paidAt: inst.paidAt?.toISOString() ?? null,
+      };
+    });
+
+    let due: Date | null = null;
+    if (installmentMode) {
+      const nextOpen = loan.installments.find(
+        (i) => i.status === "PENDING" || i.status === "OVERDUE"
+      );
+      due = nextOpen?.dueDate ?? null;
+      totalDebt += remainingBalance;
+    } else {
+      due = nextLoanDueDate(loan.paymentDay, loan.billingStartMonth);
+      totalDebt += remainingBalance;
+      pendingCount += 1;
+      considerNextDue(due);
+    }
 
     return {
       loanDate: loan.loanDate.toISOString(),
       principal: Number(loan.principal),
       remainingBalance,
       interestRate,
+      paymentFrequency: loan.paymentFrequency,
       paymentDay: loan.paymentDay,
+      paymentDay2: loan.paymentDay2,
+      weekday: loan.weekday,
       billingStartMonth: loan.billingStartMonth.toISOString(),
+      billingStartDate: loan.billingStartDate?.toISOString() ?? null,
       monthlyInterest,
       settleTotal,
       status: loan.status,
-      nextDueDate: due.toISOString(),
+      nextDueDate: due?.toISOString() ?? null,
+      installments: portalInstallments,
     };
   });
 

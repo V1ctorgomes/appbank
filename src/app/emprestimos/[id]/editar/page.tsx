@@ -25,8 +25,12 @@ export default async function EditarEmprestimoPage({
         clientId: loan.clientId,
         principal: loan.principal,
         interestRate: loan.interestRate,
+        paymentFrequency: loan.paymentFrequency,
         paymentDay: loan.paymentDay,
+        paymentDay2: loan.paymentDay2,
+        weekday: loan.weekday,
         billingStartMonth: loan.billingStartMonth,
+        billingStartDate: loan.billingStartDate,
         loanDate: loan.loanDate,
         notes: loan.notes,
       }}

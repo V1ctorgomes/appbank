@@ -12,4 +12,14 @@ export async function syncOverdueInstallments(userId: string) {
     },
     data: { status: "OVERDUE" },
   });
+
+  await prisma.loanInstallment.updateMany({
+    where: {
+      status: "PENDING",
+      dueDate: { lt: today },
+      deletedAt: null,
+      loan: { userId, deletedAt: null, status: "ACTIVE" },
+    },
+    data: { status: "OVERDUE" },
+  });
 }

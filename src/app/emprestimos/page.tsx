@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getLoans } from "@/actions/loans";
-import { calcMonthlyInterest, formatPaymentSchedule } from "@/lib/loan-utils";
+import {
+  calcMonthlyInterest,
+  formatPaymentSchedule,
+  isInstallmentFrequency,
+  loanFrequencyLabel,
+} from "@/lib/loan-utils";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Plus, Eye } from "lucide-react";
@@ -61,7 +66,12 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
                 {loans.map((loan) => {
                   const balance = Number(loan.remainingBalance);
                   const rate = Number(loan.interestRate);
-                  const interest = calcMonthlyInterest(balance, rate);
+                  const interest = calcMonthlyInterest(
+                    isInstallmentFrequency(loan.paymentFrequency)
+                      ? Number(loan.principal)
+                      : balance,
+                    rate
+                  );
                   return (
                     <tr key={loan.id} className="border-t border-slate-100">
                       <td className="px-6 py-4 text-slate-600">
@@ -83,9 +93,17 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
                             ({formatCurrency(interest)})
                           </span>
                         )}
+                        <div className="text-xs text-slate-400">
+                          {loanFrequencyLabel(loan.paymentFrequency)}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-slate-600">
-                        {formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth)}
+                        {formatPaymentSchedule(loan.paymentDay, loan.billingStartMonth, {
+                          paymentFrequency: loan.paymentFrequency,
+                          weekday: loan.weekday,
+                          paymentDay2: loan.paymentDay2,
+                          billingStartDate: loan.billingStartDate,
+                        })}
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={loan.status} />
