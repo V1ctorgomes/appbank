@@ -19,7 +19,7 @@ export type LoanPaymentAllocation = {
   settleTotal: number;
 };
 
-export const LOAN_INSTALLMENT_COUNTS: Record<
+export const DEFAULT_LOAN_INSTALLMENT_COUNTS: Record<
   Exclude<LoanPaymentFrequency, "MONTHLY">,
   number
 > = {
@@ -27,6 +27,21 @@ export const LOAN_INSTALLMENT_COUNTS: Record<
   WEEKLY: 4,
   BIWEEKLY: 2,
 };
+
+export const MAX_LOAN_INSTALLMENTS = 365;
+
+export function installmentCountLabel(
+  frequency: Exclude<LoanPaymentFrequency, "MONTHLY">
+): string {
+  switch (frequency) {
+    case "DAILY":
+      return "Quantidade de dias";
+    case "WEEKLY":
+      return "Quantidade de semanas";
+    case "BIWEEKLY":
+      return "Quantidade de quinzenas";
+  }
+}
 
 export const WEEKDAY_OPTIONS = [
   { value: "1", label: "Segunda-feira" },
@@ -319,8 +334,9 @@ export function generateLoanInstallments(input: {
   weekday?: number;
   paymentDay?: number;
   paymentDay2?: number;
+  installmentCount?: number;
 }): GeneratedLoanInstallment[] {
-  const count = LOAN_INSTALLMENT_COUNTS[input.frequency];
+  const count = input.installmentCount ?? DEFAULT_LOAN_INSTALLMENT_COUNTS[input.frequency];
   const values = splitInstallmentValues(input.totalDue, count);
   const start = parseLocalDate(input.billingStartDate);
   const dueDates: Date[] = [];
@@ -344,7 +360,7 @@ export function generateLoanInstallments(input: {
     let month = start.getMonth();
     let safety = 0;
 
-    while (dueDates.length < count && safety < 36) {
+    while (dueDates.length < count && safety < count + 12) {
       for (const day of days) {
         const due = dueDateInMonth(year, month, day);
         if (due >= start) {

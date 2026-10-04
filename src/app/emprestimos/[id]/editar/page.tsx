@@ -31,6 +31,7 @@ export default async function EditarEmprestimoPage({
         weekday: loan.weekday,
         billingStartMonth: loan.billingStartMonth,
         billingStartDate: loan.billingStartDate,
+        installmentCount: loan.installmentCount,
         loanDate: loan.loanDate,
         notes: loan.notes,
       }}

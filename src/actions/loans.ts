@@ -20,7 +20,7 @@ import {
   calcMonthlyInterest,
   generateLoanInstallments,
   isInstallmentFrequency,
-  LOAN_INSTALLMENT_COUNTS,
+  DEFAULT_LOAN_INSTALLMENT_COUNTS,
   monthInputFromDate,
   monthInputToDate,
 } from "@/lib/loan-utils";
@@ -60,7 +60,8 @@ function resolveBillingFields(data: CreateLoanInput | UpdateLoanInput) {
   const billingStartDate = new Date(billingStartDateStr + "T12:00:00");
   const billingStartMonth = monthInputToDate(monthInputFromDate(billingStartDate));
   const totalDue = calcLoanTotalDue(roundMoney(data.principal), data.interestRate);
-  const installmentCount = LOAN_INSTALLMENT_COUNTS[frequency];
+  const installmentCount =
+    data.installmentCount ?? DEFAULT_LOAN_INSTALLMENT_COUNTS[frequency];
 
   if (frequency === "WEEKLY") {
     const weekday = data.weekday!;
@@ -69,6 +70,7 @@ function resolveBillingFields(data: CreateLoanInput | UpdateLoanInput) {
       totalDue,
       billingStartDate: billingStartDateStr,
       weekday,
+      installmentCount,
     });
     return {
       paymentFrequency: "WEEKLY" as const,
@@ -89,6 +91,7 @@ function resolveBillingFields(data: CreateLoanInput | UpdateLoanInput) {
       frequency: "DAILY",
       totalDue,
       billingStartDate: billingStartDateStr,
+      installmentCount,
     });
     return {
       paymentFrequency: "DAILY" as const,
@@ -111,6 +114,7 @@ function resolveBillingFields(data: CreateLoanInput | UpdateLoanInput) {
     billingStartDate: billingStartDateStr,
     paymentDay,
     paymentDay2,
+    installmentCount,
   });
 
   return {

@@ -222,6 +222,12 @@ export const createLoanSchema = z
       .regex(/^\d{4}-\d{2}$/, "Informe o mês de início da cobrança")
       .optional(),
     billingStartDate: z.string().optional(),
+    installmentCount: z.coerce
+      .number()
+      .int("Quantidade de parcelas deve ser um número inteiro")
+      .min(1, "Informe pelo menos 1 parcela")
+      .max(365, "Quantidade máxima é 365 parcelas")
+      .optional(),
     loanDate: z.string().min(1, "Data do empréstimo é obrigatória"),
     notes: z.string().optional(),
   })

@@ -13,9 +13,11 @@ import {
   calcLoanTotalDue,
   calcMonthlyInterest,
   formatBillingMonth,
+  DEFAULT_LOAN_INSTALLMENT_COUNTS,
   generateLoanInstallments,
+  installmentCountLabel,
   isInstallmentFrequency,
-  LOAN_INSTALLMENT_COUNTS,
+  MAX_LOAN_INSTALLMENTS,
   monthInputFromDate,
   monthInputToDate,
   WEEKDAY_OPTIONS,
@@ -48,6 +50,7 @@ export function LoanForm({ clients }: LoanFormProps) {
   const [billingStartDate, setBillingStartDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
+  const [installmentCount, setInstallmentCount] = useState("");
   const [notes, setNotes] = useState("");
 
   const principalNum = parseFloat(principal) || 0;
@@ -55,6 +58,7 @@ export function LoanForm({ clients }: LoanFormProps) {
   const paymentDayNum = parseInt(paymentDay, 10) || 1;
   const paymentDay2Num = parseInt(paymentDay2, 10) || 16;
   const weekdayNum = parseInt(weekday, 10);
+  const installmentCountNum = parseInt(installmentCount, 10) || 0;
 
   const monthlyInterest = useMemo(
     () => calcMonthlyInterest(principalNum, rateNum),
@@ -66,7 +70,14 @@ export function LoanForm({ clients }: LoanFormProps) {
   );
 
   const previewInstallments = useMemo(() => {
-    if (!isInstallmentFrequency(paymentFrequency) || principalNum <= 0) return [];
+    if (
+      !isInstallmentFrequency(paymentFrequency) ||
+      principalNum <= 0 ||
+      installmentCountNum < 1 ||
+      installmentCountNum > MAX_LOAN_INSTALLMENTS
+    ) {
+      return [];
+    }
     try {
       return generateLoanInstallments({
         frequency: paymentFrequency,
@@ -75,6 +86,7 @@ export function LoanForm({ clients }: LoanFormProps) {
         weekday: weekdayNum,
         paymentDay: paymentDayNum,
         paymentDay2: paymentDay2Num,
+        installmentCount: installmentCountNum,
       });
     } catch {
       return [];
@@ -87,7 +99,15 @@ export function LoanForm({ clients }: LoanFormProps) {
     weekdayNum,
     paymentDayNum,
     paymentDay2Num,
+    installmentCountNum,
   ]);
+
+  function handleFrequencyChange(next: LoanPaymentFrequency) {
+    setPaymentFrequency(next);
+    setInstallmentCount(
+      isInstallmentFrequency(next) ? String(DEFAULT_LOAN_INSTALLMENT_COUNTS[next]) : ""
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -109,6 +129,9 @@ export function LoanForm({ clients }: LoanFormProps) {
         paymentFrequency === "MONTHLY" ? billingStartMonth : undefined,
       billingStartDate:
         paymentFrequency !== "MONTHLY" ? billingStartDate : undefined,
+      installmentCount: isInstallmentFrequency(paymentFrequency)
+        ? installmentCountNum
+        : undefined,
       loanDate,
       notes: notes || undefined,
     });
@@ -191,7 +214,7 @@ export function LoanForm({ clients }: LoanFormProps) {
               label="Forma de cobrança *"
               value={paymentFrequency}
               onChange={(e) =>
-                setPaymentFrequency(e.target.value as LoanPaymentFrequency)
+                handleFrequencyChange(e.target.value as LoanPaymentFrequency)
               }
               options={[
                 { value: "MONTHLY", label: "Mensal" },
@@ -287,6 +310,19 @@ export function LoanForm({ clients }: LoanFormProps) {
               </div>
             )}
 
+            {isInstallmentFrequency(paymentFrequency) && (
+              <Input
+                label={`${installmentCountLabel(paymentFrequency)} *`}
+                type="number"
+                min="1"
+                max={String(MAX_LOAN_INSTALLMENTS)}
+                step="1"
+                value={installmentCount}
+                onChange={(e) => setInstallmentCount(e.target.value)}
+                required
+              />
+            )}
+
             <div className="space-y-1">
               <label htmlFor="loan-notes" className="block text-sm font-medium text-slate-700">
                 Observação
@@ -325,11 +361,11 @@ export function LoanForm({ clients }: LoanFormProps) {
                   <div className="flex justify-between">
                     <span className="text-slate-500">Parcelas</span>
                     <span className="font-medium">
-                      {LOAN_INSTALLMENT_COUNTS[paymentFrequency]} ×{" "}
-                      {formatCurrency(
-                        previewInstallments[0]?.value ??
-                          totalDue / LOAN_INSTALLMENT_COUNTS[paymentFrequency]
-                      )}
+                      {installmentCountNum > 0
+                        ? `${installmentCountNum} × ${formatCurrency(
+                            previewInstallments[0]?.value ?? totalDue / installmentCountNum
+                          )}`
+                        : "—"}
                     </span>
                   </div>
                 </>
