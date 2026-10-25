@@ -1,82 +1,214 @@
+import { Suspense } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { StatCard, Card } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { getDashboardData } from "@/actions/dashboard";
+import { getDashboardData, getDashboardLoanData } from "@/actions/dashboard";
 import { GoalsWidget } from "@/components/dashboard/goals-widget";
 import { RoutineWidget } from "@/components/dashboard/routine-widget";
+import {
+  DashboardViewFilter,
+  type DashboardView,
+} from "@/components/dashboard/dashboard-view-filter";
 
-export default async function DashboardPage() {
-  let data: any = {
+function parseView(value?: string): DashboardView {
+  return value === "emprestimos" ? "emprestimos" : "geral";
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ visao?: string }>;
+}) {
+  const params = await searchParams;
+  const view = parseView(params.visao);
+
+  let general = {
     balance: 0,
     monthIncome: 0,
     monthExpense: 0,
     totalReceivable: 0,
     overdueCount: 0,
-    upcomingPayments: [],
+    upcomingPayments: [] as {
+      id: string;
+      clientName: string;
+      value: number;
+      dueDate: Date | string;
+      label?: string;
+    }[],
+  };
+
+  let loans = {
+    activeCount: 0,
+    portfolio: 0,
+    monthReceived: 0,
+    monthDisbursed: 0,
+    monthReceivable: 0,
+    overdueCount: 0,
+    overdueValue: 0,
+    upcomingPayments: [] as {
+      id: string;
+      clientName: string;
+      value: number;
+      dueDate: Date | string;
+      label?: string;
+    }[],
   };
 
   try {
-    data = await getDashboardData();
+    if (view === "emprestimos") {
+      loans = await getDashboardLoanData();
+    } else {
+      general = await getDashboardData();
+    }
   } catch (err) {
     console.error("Erro ao carregar dados do dashboard:", err);
   }
 
+  const upcoming =
+    view === "emprestimos" ? loans.upcomingPayments : general.upcomingPayments;
+
   return (
     <AppLayout>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500">Visão geral da sua situação financeira</p>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-slate-500">
+            {view === "emprestimos"
+              ? "Métricas da carteira de empréstimos"
+              : "Visão geral da sua situação financeira"}
+          </p>
+        </div>
+        <Suspense fallback={null}>
+          <DashboardViewFilter current={view} />
+        </Suspense>
       </div>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard
-          title="Saldo Atual"
-          value={formatCurrency(data.balance)}
-          variant={data.balance >= 0 ? "income" : "expense"}
-        />
-        <StatCard
-          title="Entradas do Mês"
-          value={formatCurrency(data.monthIncome)}
-          variant="income"
-        />
-        <StatCard
-          title="Saídas do Mês"
-          value={formatCurrency(data.monthExpense)}
-          variant="expense"
-        />
-        <StatCard
-          title="A Receber no Mês"
-          value={formatCurrency(data.totalReceivable)}
-          subtitle="Vencimentos do mês atual"
-        />
-        <StatCard
-          title="Parcelas Atrasadas"
-          value={String(data.overdueCount)}
-          variant={data.overdueCount > 0 ? "warning" : "default"}
-        />
-      </div>
+      {view === "emprestimos" ? (
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <StatCard
+            title="Empréstimos Ativos"
+            value={String(loans.activeCount)}
+          />
+          <StatCard
+            title="Carteira em Aberto"
+            value={formatCurrency(loans.portfolio)}
+            subtitle="Saldo restante dos ativos"
+          />
+          <StatCard
+            title="Recebido no Mês"
+            value={formatCurrency(loans.monthReceived)}
+            variant="income"
+          />
+          <StatCard
+            title="A Receber no Mês"
+            value={formatCurrency(loans.monthReceivable)}
+            subtitle="Juros e parcelas do mês"
+          />
+          <StatCard
+            title="Atrasados"
+            value={String(loans.overdueCount)}
+            subtitle={
+              loans.overdueValue > 0
+                ? formatCurrency(loans.overdueValue) + " em parcelas"
+                : undefined
+            }
+            variant={loans.overdueCount > 0 ? "warning" : "default"}
+          />
+        </div>
+      ) : (
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <StatCard
+            title="Saldo Atual"
+            value={formatCurrency(general.balance)}
+            variant={general.balance >= 0 ? "income" : "expense"}
+          />
+          <StatCard
+            title="Entradas do Mês"
+            value={formatCurrency(general.monthIncome)}
+            variant="income"
+          />
+          <StatCard
+            title="Saídas do Mês"
+            value={formatCurrency(general.monthExpense)}
+            variant="expense"
+          />
+          <StatCard
+            title="A Receber no Mês"
+            value={formatCurrency(general.totalReceivable)}
+            subtitle="Vencimentos do mês atual"
+          />
+          <StatCard
+            title="Parcelas Atrasadas"
+            value={String(general.overdueCount)}
+            variant={general.overdueCount > 0 ? "warning" : "default"}
+          />
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {view === "emprestimos" && (
+        <div className="mb-8 grid gap-4 sm:grid-cols-2">
+          <StatCard
+            title="Liberado no Mês"
+            value={formatCurrency(loans.monthDisbursed)}
+            subtitle="Novos empréstimos"
+            variant="expense"
+          />
+          <StatCard
+            title="Resultado do Mês (empréstimos)"
+            value={formatCurrency(loans.monthReceived - loans.monthDisbursed)}
+            variant={
+              loans.monthReceived - loans.monthDisbursed >= 0 ? "income" : "expense"
+            }
+            subtitle="Recebido − liberado"
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <Card title="Próximos Recebimentos">
-            {data.upcomingPayments.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhum recebimento previsto nos próximos 30 dias.</p>
+          <Card
+            title={
+              view === "emprestimos"
+                ? "Próximos Vencimentos de Empréstimos"
+                : "Próximos Recebimentos"
+            }
+          >
+            {upcoming.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                {view === "emprestimos"
+                  ? "Nenhum vencimento de empréstimo nos próximos 30 dias."
+                  : "Nenhum recebimento previsto nos próximos 30 dias."}
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-left text-slate-500">
                       <th className="pb-3 font-medium">Cliente</th>
+                      {view === "emprestimos" && (
+                        <th className="pb-3 font-medium">Tipo</th>
+                      )}
                       <th className="pb-3 font-medium">Valor</th>
                       <th className="pb-3 font-medium">Vencimento</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.upcomingPayments.map((payment: any) => (
+                    {upcoming.map((payment) => (
                       <tr key={payment.id} className="border-b border-slate-100">
-                        <td className="py-3 font-medium text-slate-800">{payment.clientName}</td>
-                        <td className="py-3 text-green-700">{formatCurrency(payment.value)}</td>
-                        <td className="py-3 text-slate-600">{formatDate(payment.dueDate)}</td>
+                        <td className="py-3 font-medium text-slate-800">
+                          {payment.clientName}
+                        </td>
+                        {view === "emprestimos" && (
+                          <td className="py-3 text-slate-600">
+                            {payment.label ?? "—"}
+                          </td>
+                        )}
+                        <td className="py-3 text-green-700">
+                          {formatCurrency(payment.value)}
+                        </td>
+                        <td className="py-3 text-slate-600">
+                          {formatDate(payment.dueDate)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -94,4 +226,3 @@ export default async function DashboardPage() {
     </AppLayout>
   );
 }
-
