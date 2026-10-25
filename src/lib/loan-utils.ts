@@ -408,6 +408,64 @@ export function loanDueDateForMonth(
 }
 
 /**
+ * Quantos meses de cobrança existem de billingStart até (year, monthIndex), inclusive.
+ * Usado para casar pagamentos (em ordem) com o mês de juros correspondente —
+ * assim um pagamento atrasado (data de hoje) ainda “fecha” o mês vencido.
+ */
+export function countLoanBillingMonthsThrough(
+  billingStartMonth: Date | string,
+  year: number,
+  monthIndex: number
+): number {
+  const start =
+    typeof billingStartMonth === "string"
+      ? new Date(billingStartMonth)
+      : billingStartMonth;
+
+  let y = start.getUTCFullYear();
+  let m = start.getUTCMonth();
+  let count = 0;
+
+  while (y < year || (y === year && m <= monthIndex)) {
+    count += 1;
+    m += 1;
+    if (m > 11) {
+      m = 0;
+      y += 1;
+    }
+    if (count > 1200) break;
+  }
+
+  return count;
+}
+
+/**
+ * O mês (year, monthIndex) já foi coberto por algum pagamento?
+ * Pagamentos são aplicados em ordem cronológica aos meses de cobrança.
+ */
+export function isMonthlyLoanInterestCovered(
+  billingStartMonth: Date | string,
+  year: number,
+  monthIndex: number,
+  paymentCount: number
+): boolean {
+  if (paymentCount <= 0) return false;
+
+  const start =
+    typeof billingStartMonth === "string"
+      ? new Date(billingStartMonth)
+      : billingStartMonth;
+  const startYear = start.getUTCFullYear();
+  const startMonth = start.getUTCMonth();
+  if (year < startYear || (year === startYear && monthIndex < startMonth)) {
+    return true;
+  }
+
+  const index = countLoanBillingMonthsThrough(billingStartMonth, year, monthIndex);
+  return paymentCount >= index;
+}
+
+/**
  * Próximo vencimento mensal: dia do pagamento a cada mês, a partir do mês de início da cobrança.
  */
 export function nextLoanDueDate(

@@ -6,6 +6,7 @@ import { syncOverdueInstallments } from "@/lib/installments";
 import { parseMonthFilter } from "@/lib/month-filter";
 import {
   calcMonthlyInterest,
+  isMonthlyLoanInterestCovered,
   loanDueDateForMonth,
   loanPaymentTypeLabel,
 } from "@/lib/loan-utils";
@@ -126,20 +127,15 @@ export async function getPendingRecebimentos(
         billingStartMonth: true,
         billingStartDate: true,
         client: { select: { id: true, name: true } },
-        payments: {
-          where: {
-            deletedAt: null,
-            paymentDate: { gte: start, lte: end },
+        _count: {
+          select: {
+            payments: { where: { deletedAt: null } },
           },
-          select: { id: true },
-          take: 1,
         },
       },
     });
 
     for (const loan of loans) {
-      if (loan.payments.length > 0) continue;
-
       const due = loanDueDateForMonth(
         loan.paymentDay,
         loan.billingStartMonth,
@@ -147,6 +143,19 @@ export async function getPendingRecebimentos(
         monthIndex
       );
       if (!due) continue;
+
+      // Pagamentos cobrem os meses em ordem (1º pagamento → 1º mês de cobrança).
+      // Assim um juros atrasado pago "hoje" some do mês vencido.
+      if (
+        isMonthlyLoanInterestCovered(
+          loan.billingStartMonth,
+          year,
+          monthIndex,
+          loan._count.payments
+        )
+      ) {
+        continue;
+      }
 
       const interest = calcMonthlyInterest(
         Number(loan.remainingBalance),
