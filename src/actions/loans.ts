@@ -130,10 +130,29 @@ function resolveBillingFields(data: CreateLoanInput | UpdateLoanInput) {
   };
 }
 
-export async function getLoans(page?: string | number) {
+export async function getLoans(page?: string | number, search?: string) {
   const user = await requireAuth();
+  const term = search?.trim() ?? "";
+  const digits = term.replace(/\D/g, "");
 
-  const where = { userId: user.id, deletedAt: null };
+  const where = {
+    userId: user.id,
+    deletedAt: null,
+    ...(term
+      ? {
+          OR: [
+            { notes: { contains: term, mode: "insensitive" as const } },
+            { client: { name: { contains: term, mode: "insensitive" as const } } },
+            ...(digits
+              ? [
+                  { client: { cpf: { contains: digits } } },
+                  { client: { phone: { contains: digits } } },
+                ]
+              : []),
+          ],
+        }
+      : {}),
+  };
 
   const total = await prisma.loan.count({ where });
   const totalPages = getTotalPages(total);

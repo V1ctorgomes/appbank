@@ -15,10 +15,35 @@ import {
 } from "@/lib/sale-utils";
 import { PAGE_SIZE, parsePage, getTotalPages } from "@/lib/pagination";
 
-export async function getSales(page?: string | number) {
+export async function getSales(page?: string | number, search?: string) {
   const user = await requireAuth();
+  const term = search?.trim() ?? "";
+  const digits = term.replace(/\D/g, "");
 
-  const where = { userId: user.id, deletedAt: null };
+  const where = {
+    userId: user.id,
+    deletedAt: null,
+    ...(term
+      ? {
+          OR: [
+            { description: { contains: term, mode: "insensitive" as const } },
+            { notes: { contains: term, mode: "insensitive" as const } },
+            { client: { name: { contains: term, mode: "insensitive" as const } } },
+            {
+              items: {
+                some: { name: { contains: term, mode: "insensitive" as const } },
+              },
+            },
+            ...(digits
+              ? [
+                  { client: { cpf: { contains: digits } } },
+                  { client: { phone: { contains: digits } } },
+                ]
+              : []),
+          ],
+        }
+      : {}),
+  };
 
   const total = await prisma.sale.count({ where });
   const totalPages = getTotalPages(total);

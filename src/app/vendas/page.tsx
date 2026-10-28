@@ -7,15 +7,17 @@ import { getSales } from "@/actions/sales";
 import { getSalePaymentSummary } from "@/lib/sale-utils";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { ListSearch } from "@/components/ui/list-search";
 import { Plus, Eye } from "lucide-react";
 
 interface PageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; search?: string }>;
 }
 
 export default async function VendasPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const { items: sales, total, page, totalPages } = await getSales(params.page);
+  const search = params.search?.trim() || undefined;
+  const { items: sales, total, page, totalPages } = await getSales(params.page, search);
 
   return (
     <AppLayout>
@@ -34,12 +36,24 @@ export default async function VendasPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
+      <ListSearch
+        action="/vendas"
+        defaultValue={search}
+        placeholder="Buscar por cliente, descrição, item, telefone ou CPF"
+      />
+
       {total === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-slate-500">Nenhuma venda registrada.</p>
-          <Link href="/vendas/nova" className="mt-4 inline-block">
-            <Button>Registrar primeira venda</Button>
-          </Link>
+          {search ? (
+            <p className="text-slate-500">Nenhuma venda encontrada para &quot;{search}&quot;.</p>
+          ) : (
+            <>
+              <p className="text-slate-500">Nenhuma venda registrada.</p>
+              <Link href="/vendas/nova" className="mt-4 inline-block">
+                <Button>Registrar primeira venda</Button>
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -94,6 +108,7 @@ export default async function VendasPage({ searchParams }: PageProps) {
               currentPage={page}
               totalPages={totalPages}
               basePath="/vendas"
+              searchParams={{ search }}
             />
             <p className="mt-2 text-xs text-slate-400">
               Exibindo até {PAGE_SIZE} vendas por página

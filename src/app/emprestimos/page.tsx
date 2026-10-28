@@ -12,15 +12,17 @@ import {
 } from "@/lib/loan-utils";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { ListSearch } from "@/components/ui/list-search";
 import { Plus, Eye } from "lucide-react";
 
 interface PageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; search?: string }>;
 }
 
 export default async function EmprestimosPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const { items: loans, total, page, totalPages } = await getLoans(params.page);
+  const search = params.search?.trim() || undefined;
+  const { items: loans, total, page, totalPages } = await getLoans(params.page, search);
 
   return (
     <AppLayout>
@@ -39,12 +41,26 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
+      <ListSearch
+        action="/emprestimos"
+        defaultValue={search}
+        placeholder="Buscar por cliente, telefone, CPF ou observação"
+      />
+
       {total === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-slate-500">Nenhum empréstimo registrado.</p>
-          <Link href="/emprestimos/novo" className="mt-4 inline-block">
-            <Button>Registrar primeiro empréstimo</Button>
-          </Link>
+          {search ? (
+            <p className="text-slate-500">
+              Nenhum empréstimo encontrado para &quot;{search}&quot;.
+            </p>
+          ) : (
+            <>
+              <p className="text-slate-500">Nenhum empréstimo registrado.</p>
+              <Link href="/emprestimos/novo" className="mt-4 inline-block">
+                <Button>Registrar primeiro empréstimo</Button>
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -127,6 +143,7 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
               currentPage={page}
               totalPages={totalPages}
               basePath="/emprestimos"
+              searchParams={{ search }}
             />
             <p className="mt-2 text-xs text-slate-400">
               Exibindo até {PAGE_SIZE} empréstimos por página

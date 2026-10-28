@@ -9,15 +9,19 @@ import { PAGE_SIZE, parsePage, getTotalPages } from "@/lib/pagination";
 
 export async function getClients(search?: string, page?: string | number) {
   const user = await requireAuth();
+  const term = search?.trim() ?? "";
+  const digits = term.replace(/\D/g, "");
 
   const where = {
     userId: user.id,
     deletedAt: null,
-    ...(search
+    ...(term
       ? {
           OR: [
-            { name: { contains: search, mode: "insensitive" as const } },
-            { cpf: { contains: search.replace(/\D/g, "") } },
+            { name: { contains: term, mode: "insensitive" as const } },
+            ...(digits
+              ? [{ cpf: { contains: digits } }, { phone: { contains: digits } }]
+              : []),
           ],
         }
       : {}),

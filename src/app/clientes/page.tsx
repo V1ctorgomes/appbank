@@ -7,16 +7,18 @@ import { getClients } from "@/actions/clients";
 import { getClientBalance } from "@/lib/client-utils";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { formatCurrency, formatPhone, formatCpf } from "@/lib/utils";
+import { ListSearch } from "@/components/ui/list-search";
 import { Plus, Eye } from "lucide-react";
 
 interface PageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; search?: string }>;
 }
 
 export default async function ClientesPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  const search = params.search?.trim() || undefined;
   const { items: clients, total, page, totalPages } = await getClients(
-    undefined,
+    search,
     params.page
   );
 
@@ -37,13 +39,25 @@ export default async function ClientesPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
+      <ListSearch
+        action="/clientes"
+        defaultValue={search}
+        placeholder="Buscar por nome, telefone ou CPF"
+      />
+
       {total === 0 ? (
         <Card>
           <p className="text-center text-slate-500">
-            Nenhum cliente cadastrado.{" "}
-            <Link href="/clientes/novo" className="text-primary-600 hover:underline">
-              Cadastre o primeiro
-            </Link>
+            {search ? (
+              <>Nenhum cliente encontrado para &quot;{search}&quot;.</>
+            ) : (
+              <>
+                Nenhum cliente cadastrado.{" "}
+                <Link href="/clientes/novo" className="text-primary-600 hover:underline">
+                  Cadastre o primeiro
+                </Link>
+              </>
+            )}
           </p>
         </Card>
       ) : (
@@ -95,6 +109,7 @@ export default async function ClientesPage({ searchParams }: PageProps) {
               currentPage={page}
               totalPages={totalPages}
               basePath="/clientes"
+              searchParams={{ search }}
             />
             <p className="mt-2 text-xs text-slate-400">
               Exibindo até {PAGE_SIZE} clientes por página
