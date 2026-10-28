@@ -2,16 +2,47 @@ import { Suspense } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { StatCard, Card } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { getDashboardData, getDashboardLoanData } from "@/actions/dashboard";
+import {
+  getDashboardCalendar,
+  getDashboardData,
+  getDashboardLoanData,
+  getDashboardSaleData,
+  type DashboardCalendarDay,
+} from "@/actions/dashboard";
 import { GoalsWidget } from "@/components/dashboard/goals-widget";
 import { RoutineWidget } from "@/components/dashboard/routine-widget";
+import { DashboardReceiptCalendar } from "@/components/dashboard/receipt-calendar";
+import { calendarDateKey } from "@/lib/utils";
 import {
   DashboardViewFilter,
   type DashboardView,
 } from "@/components/dashboard/dashboard-view-filter";
 
 function parseView(value?: string): DashboardView {
-  return value === "emprestimos" ? "emprestimos" : "geral";
+  if (value === "emprestimos" || value === "vendas") return value;
+  return "geral";
+}
+
+function viewSubtitle(view: DashboardView) {
+  if (view === "emprestimos") return "Métricas da carteira de empréstimos";
+  if (view === "vendas") return "Métricas das vendas e parcelas";
+  return "Visão geral da sua situação financeira";
+}
+
+function upcomingTitle(view: DashboardView) {
+  if (view === "emprestimos") return "Próximos Vencimentos de Empréstimos";
+  if (view === "vendas") return "Próximos Vencimentos de Vendas";
+  return "Próximos Recebimentos";
+}
+
+function upcomingEmpty(view: DashboardView) {
+  if (view === "emprestimos") {
+    return "Nenhum vencimento de empréstimo nos próximos 30 dias.";
+  }
+  if (view === "vendas") {
+    return "Nenhum vencimento de venda nos próximos 30 dias.";
+  }
+  return "Nenhum recebimento previsto nos próximos 30 dias.";
 }
 
 export default async function DashboardPage({
@@ -28,6 +59,24 @@ export default async function DashboardPage({
     monthExpense: 0,
     totalReceivable: 0,
     overdueCount: 0,
+    upcomingPayments: [] as {
+      id: string;
+      clientName: string;
+      value: number;
+      dueDate: Date | string;
+      label?: string;
+    }[],
+  };
+
+  let sales = {
+    monthCount: 0,
+    monthSold: 0,
+    monthReceived: 0,
+    monthReceivable: 0,
+    openValue: 0,
+    openCount: 0,
+    overdueCount: 0,
+    overdueValue: 0,
     upcomingPayments: [] as {
       id: string;
       clientName: string;
@@ -54,36 +103,77 @@ export default async function DashboardPage({
     }[],
   };
 
+  let calendar = {
+    month: calendarDateKey().slice(0, 7),
+    days: [] as DashboardCalendarDay[],
+  };
+
   try {
     if (view === "emprestimos") {
       loans = await getDashboardLoanData();
+    } else if (view === "vendas") {
+      sales = await getDashboardSaleData();
     } else {
       general = await getDashboardData();
     }
+    calendar = await getDashboardCalendar(view);
   } catch (err) {
     console.error("Erro ao carregar dados do dashboard:", err);
   }
 
   const upcoming =
-    view === "emprestimos" ? loans.upcomingPayments : general.upcomingPayments;
+    view === "emprestimos"
+      ? loans.upcomingPayments
+      : view === "vendas"
+        ? sales.upcomingPayments
+        : general.upcomingPayments;
+  const showKind = view === "emprestimos" || view === "vendas";
 
   return (
     <AppLayout>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-500">
-            {view === "emprestimos"
-              ? "Métricas da carteira de empréstimos"
-              : "Visão geral da sua situação financeira"}
-          </p>
+          <p className="text-slate-500">{viewSubtitle(view)}</p>
         </div>
         <Suspense fallback={null}>
           <DashboardViewFilter current={view} />
         </Suspense>
       </div>
 
-      {view === "emprestimos" ? (
+      {view === "vendas" ? (
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <StatCard
+            title="Vendas no Mês"
+            value={String(sales.monthCount)}
+            subtitle="Registradas neste mês"
+          />
+          <StatCard
+            title="Vendido no Mês"
+            value={formatCurrency(sales.monthSold)}
+          />
+          <StatCard
+            title="Recebido no Mês"
+            value={formatCurrency(sales.monthReceived)}
+            variant="income"
+          />
+          <StatCard
+            title="A Receber no Mês"
+            value={formatCurrency(sales.monthReceivable)}
+            subtitle="Parcelas que vencem no mês"
+          />
+          <StatCard
+            title="Atrasados"
+            value={String(sales.overdueCount)}
+            subtitle={
+              sales.overdueValue > 0
+                ? formatCurrency(sales.overdueValue) + " em parcelas"
+                : undefined
+            }
+            variant={sales.overdueCount > 0 ? "warning" : "default"}
+          />
+        </div>
+      ) : view === "emprestimos" ? (
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <StatCard
             title="Empréstimos Ativos"
@@ -145,6 +235,21 @@ export default async function DashboardPage({
         </div>
       )}
 
+      {view === "vendas" && (
+        <div className="mb-8 grid gap-4 sm:grid-cols-2">
+          <StatCard
+            title="Em Aberto"
+            value={formatCurrency(sales.openValue)}
+            subtitle="Parcelas ainda não pagas"
+          />
+          <StatCard
+            title="Vendas em Aberto"
+            value={String(sales.openCount)}
+            subtitle="Com parcelas pendentes"
+          />
+        </div>
+      )}
+
       {view === "emprestimos" && (
         <div className="mb-8 grid gap-4 sm:grid-cols-2">
           <StatCard
@@ -164,30 +269,25 @@ export default async function DashboardPage({
         </div>
       )}
 
+      <DashboardReceiptCalendar
+        key={view}
+        view={view}
+        initialMonth={calendar.month}
+        initialDays={calendar.days}
+      />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <Card
-            title={
-              view === "emprestimos"
-                ? "Próximos Vencimentos de Empréstimos"
-                : "Próximos Recebimentos"
-            }
-          >
+          <Card title={upcomingTitle(view)}>
             {upcoming.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                {view === "emprestimos"
-                  ? "Nenhum vencimento de empréstimo nos próximos 30 dias."
-                  : "Nenhum recebimento previsto nos próximos 30 dias."}
-              </p>
+              <p className="text-sm text-slate-500">{upcomingEmpty(view)}</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-left text-slate-500">
                       <th className="pb-3 font-medium">Cliente</th>
-                      {view === "emprestimos" && (
-                        <th className="pb-3 font-medium">Tipo</th>
-                      )}
+                      {showKind && <th className="pb-3 font-medium">Tipo</th>}
                       <th className="pb-3 font-medium">Valor</th>
                       <th className="pb-3 font-medium">Vencimento</th>
                     </tr>
@@ -198,7 +298,7 @@ export default async function DashboardPage({
                         <td className="py-3 font-medium text-slate-800">
                           {payment.clientName}
                         </td>
-                        {view === "emprestimos" && (
+                        {showKind && (
                           <td className="py-3 text-slate-600">
                             {payment.label ?? "—"}
                           </td>

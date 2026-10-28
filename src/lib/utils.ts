@@ -40,6 +40,19 @@ export function formatDate(date: Date | string) {
   }).format(d);
 }
 
+export function calendarDateKey(date = new Date(), timeZone = APP_TIMEZONE): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
+  const month = parts.find((part) => part.type === "month")?.value ?? "01";
+  const day = parts.find((part) => part.type === "day")?.value ?? "01";
+  return `${year}-${month}-${day}`;
+}
+
 export function formatDateForInput(dateVal?: Date | string | null): string {
   if (!dateVal) return "";
   if (typeof dateVal === "string" && /^\d{4}-\d{2}-\d{2}/.test(dateVal)) {

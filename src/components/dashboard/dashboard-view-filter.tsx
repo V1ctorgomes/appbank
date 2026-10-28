@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export type DashboardView = "geral" | "emprestimos";
+export type DashboardView = "geral" | "vendas" | "emprestimos";
 
 const options: { value: DashboardView; label: string }[] = [
   { value: "geral", label: "Geral" },
+  { value: "vendas", label: "Vendas" },
   { value: "emprestimos", label: "Empréstimos" },
 ];
 
