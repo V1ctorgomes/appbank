@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
 import { getClients } from "@/actions/clients";
-import { getClientBalance } from "@/lib/client-utils";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { formatCurrency, formatPhone, formatCpf } from "@/lib/utils";
 import { ListSearch } from "@/components/ui/list-search";
@@ -75,7 +74,7 @@ export default async function ClientesPage({ searchParams }: PageProps) {
               </thead>
               <tbody>
                 {clients.map((client) => {
-                  const balance = getClientBalance(client);
+                  const balance = client.balance;
                   return (
                     <tr key={client.id} className="border-t border-slate-100">
                       <td className="px-6 py-4 font-medium text-slate-800">{client.name}</td>

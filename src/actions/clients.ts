@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
 import { clientSchema } from "@/lib/schemas";
@@ -33,29 +35,41 @@ export async function getClients(search?: string, page?: string | number) {
   const skip = (currentPage - 1) * PAGE_SIZE;
 
   const items = await prisma.client.findMany({
-      where,
-      orderBy: { name: "asc" },
-      skip,
-      take: PAGE_SIZE,
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        cpf: true,
-        sales: {
-          where: { deletedAt: null },
-          select: {
-            installments: {
-              where: { deletedAt: null, status: { in: ["PENDING", "OVERDUE"] } },
-              select: { value: true },
-            },
-          },
-        },
-      },
-    });
+    where,
+    orderBy: { name: "asc" },
+    skip,
+    take: PAGE_SIZE,
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      cpf: true,
+    },
+  });
+
+  const balances = new Map<string, number>();
+  if (items.length > 0) {
+    const rows = await prisma.$queryRaw<Array<{ clientId: string; balance: unknown }>>(
+      Prisma.sql`
+        SELECT s."clientId" AS "clientId", COALESCE(SUM(i."value"), 0) AS balance
+        FROM "Sale" s
+        INNER JOIN "Installment" i ON i."saleId" = s."id"
+        WHERE s."userId" = ${user.id}
+          AND s."deletedAt" IS NULL
+          AND i."deletedAt" IS NULL
+          AND i."status"::text IN ('PENDING', 'OVERDUE')
+          AND s."clientId" IN (${Prisma.join(items.map((client) => client.id))})
+        GROUP BY s."clientId"
+      `
+    );
+    for (const row of rows) balances.set(row.clientId, Number(row.balance));
+  }
 
   return {
-    items,
+    items: items.map((client) => ({
+      ...client,
+      balance: balances.get(client.id) ?? 0,
+    })),
     total,
     page: currentPage,
     totalPages: getTotalPages(total),
@@ -67,19 +81,48 @@ export async function getClient(id: string) {
 
   return prisma.client.findFirst({
     where: { id, userId: user.id, deletedAt: null },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      cpf: true,
+      notes: true,
       sales: {
         where: { deletedAt: null },
-        include: {
-          items: true,
+        orderBy: { saleDate: "desc" },
+        select: {
+          id: true,
+          type: true,
+          saleDate: true,
+          totalValue: true,
           installments: {
             where: { deletedAt: null },
             orderBy: { number: "asc" },
-            include: { payment: true },
+            select: {
+              id: true,
+              number: true,
+              value: true,
+              dueDate: true,
+              status: true,
+            },
           },
         },
-        orderBy: { saleDate: "desc" },
       },
+    },
+  });
+}
+
+export async function getClientForEdit(id: string) {
+  const user = await requireAuth();
+
+  return prisma.client.findFirst({
+    where: { id, userId: user.id, deletedAt: null },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      cpf: true,
+      notes: true,
     },
   });
 }
@@ -120,7 +163,7 @@ export async function createClient(formData: FormData) {
   });
 
   revalidatePath("/clientes");
-  return { success: true };
+  redirect("/clientes");
 }
 
 export async function updateClient(id: string, formData: FormData) {
@@ -160,7 +203,7 @@ export async function updateClient(id: string, formData: FormData) {
 
   revalidatePath("/clientes");
   revalidatePath(`/clientes/${id}`);
-  return { success: true };
+  redirect(`/clientes/${id}`);
 }
 
 export async function deleteClient(id: string) {
@@ -172,5 +215,5 @@ export async function deleteClient(id: string) {
   });
 
   revalidatePath("/clientes");
-  return { success: true };
+  redirect("/clientes");
 }

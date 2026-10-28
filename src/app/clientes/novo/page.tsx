@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,6 @@ import { createClient } from "@/actions/clients";
 import { ArrowLeft } from "lucide-react";
 
 export default function NovoClientePage() {
-  const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -26,9 +24,6 @@ export default function NovoClientePage() {
     if (result?.error) {
       setError(result.error);
       setLoading(false);
-    } else {
-      router.push("/clientes");
-      router.refresh();
     }
   }
 

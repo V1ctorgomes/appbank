@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,6 @@ interface EditClientPageProps {
 }
 
 export function EditClientForm({ client }: EditClientPageProps) {
-  const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -37,9 +35,6 @@ export function EditClientForm({ client }: EditClientPageProps) {
     if (result?.error) {
       setError(result.error);
       setLoading(false);
-    } else {
-      router.push(`/clientes/${client.id}`);
-      router.refresh();
     }
   }
 
@@ -48,8 +43,6 @@ export function EditClientForm({ client }: EditClientPageProps) {
 
     setLoading(true);
     await deleteClient(client.id);
-    router.push("/clientes");
-    router.refresh();
   }
 
   return (
