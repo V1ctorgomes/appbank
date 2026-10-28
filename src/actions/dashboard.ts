@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth-utils";
 import { startOfMonth, endOfMonth, addDays, startOfDay } from "date-fns";
 import {
   calcMonthlyInterest,
+  countLoanBillingMonthsThrough,
   isMonthlyLoanInterestCovered,
   loanDueDateForMonth,
 } from "@/lib/loan-utils";
@@ -472,17 +473,19 @@ export async function getDashboardLoanData() {
   };
 }
 
+export type DashboardCalendarStatus = "receive" | "received" | "overdue";
+
 export type DashboardCalendarItem = {
   id: string;
   clientName: string;
   label: string;
   value: number;
-  status: "receive" | "overdue";
+  status: DashboardCalendarStatus;
 };
 
 export type DashboardCalendarDay = {
   date: string;
-  status: "receive" | "overdue";
+  status: DashboardCalendarStatus;
   total: number;
   count: number;
   items: DashboardCalendarItem[];
@@ -523,18 +526,31 @@ export async function getDashboardCalendar(viewInput?: string, month?: string) {
   const buckets = new Map<string, DashboardCalendarDay>();
 
   function addItem(date: string, item: DashboardCalendarItem) {
-    const bucket = buckets.get(date) ?? {
-      date,
-      status: "receive" as const,
-      total: 0,
-      count: 0,
-      items: [],
-    };
+    const bucket = buckets.get(date);
+    if (!bucket) {
+      buckets.set(date, {
+        date,
+        status: item.status,
+        total: item.value,
+        count: 1,
+        items: [item],
+      });
+      return;
+    }
+
     bucket.items.push(item);
     bucket.total += item.value;
     bucket.count += 1;
     if (item.status === "overdue") bucket.status = "overdue";
-    buckets.set(date, bucket);
+    else if (item.status === "receive" && bucket.status === "received") {
+      bucket.status = "receive";
+    }
+  }
+
+  function openStatus(date: string, status: string): DashboardCalendarStatus {
+    if (status === "PAID") return "received";
+    if (status === "OVERDUE" || date < today) return "overdue";
+    return "receive";
   }
 
   const [saleInstallments, loanInstallments, monthlyLoans] = await Promise.all([
@@ -542,7 +558,7 @@ export async function getDashboardCalendar(viewInput?: string, month?: string) {
       ? prisma.installment.findMany({
           where: {
             deletedAt: null,
-            status: { in: ["PENDING", "OVERDUE"] },
+            status: { in: ["PENDING", "OVERDUE", "PAID"] },
             dueDate: { gte: start, lte: end },
             sale: saleFilter,
           },
@@ -560,9 +576,9 @@ export async function getDashboardCalendar(viewInput?: string, month?: string) {
       ? prisma.loanInstallment.findMany({
           where: {
             deletedAt: null,
-            status: { in: ["PENDING", "OVERDUE"] },
+            status: { in: ["PENDING", "OVERDUE", "PAID"] },
             dueDate: { gte: start, lte: end },
-            loan: { userId, deletedAt: null, status: "ACTIVE" },
+            loan: { userId, deletedAt: null, status: { in: ["ACTIVE", "SETTLED"] } },
           },
           select: {
             id: true,
@@ -579,19 +595,22 @@ export async function getDashboardCalendar(viewInput?: string, month?: string) {
           where: {
             userId,
             deletedAt: null,
-            status: "ACTIVE",
+            status: { in: ["ACTIVE", "SETTLED"] },
             paymentFrequency: "MONTHLY",
             billingStartMonth: { lte: end },
           },
           select: {
             id: true,
+            status: true,
             remainingBalance: true,
             interestRate: true,
             paymentDay: true,
             billingStartMonth: true,
             client: { select: { name: true } },
-            _count: {
-              select: { payments: { where: { deletedAt: null } } },
+            payments: {
+              where: { deletedAt: null },
+              orderBy: [{ paymentDate: "asc" }, { createdAt: "asc" }],
+              select: { interestValue: true },
             },
           },
         })
@@ -600,8 +619,6 @@ export async function getDashboardCalendar(viewInput?: string, month?: string) {
 
   for (const installment of saleInstallments) {
     const date = formatDateForInput(installment.dueDate);
-    const overdue =
-      installment.status === "OVERDUE" || date < today;
     addItem(date, {
       id: installment.id,
       clientName: installment.sale.client.name,
@@ -610,14 +627,12 @@ export async function getDashboardCalendar(viewInput?: string, month?: string) {
           ? `Venda · Parcela #${installment.number}`
           : `Parcela #${installment.number}`,
       value: Number(installment.value),
-      status: overdue ? "overdue" : "receive",
+      status: openStatus(date, installment.status),
     });
   }
 
   for (const installment of loanInstallments) {
     const date = formatDateForInput(installment.dueDate);
-    const overdue =
-      installment.status === "OVERDUE" || date < today;
     addItem(date, {
       id: installment.id,
       clientName: installment.loan.client.name,
@@ -626,7 +641,7 @@ export async function getDashboardCalendar(viewInput?: string, month?: string) {
           ? `Empréstimo · Parcela #${installment.number}`
           : `Parcela #${installment.number}`,
       value: Number(installment.value),
-      status: overdue ? "overdue" : "receive",
+      status: openStatus(date, installment.status),
     });
   }
 
@@ -638,22 +653,39 @@ export async function getDashboardCalendar(viewInput?: string, month?: string) {
       monthIndex
     );
     if (!due) continue;
-    if (
-      isMonthlyLoanInterestCovered(
+
+    const date = localDateKey(due);
+    const covered = isMonthlyLoanInterestCovered(
+      loan.billingStartMonth,
+      year,
+      monthIndex,
+      loan.payments.length
+    );
+    const label = view === "geral" ? "Empréstimo · Juros do mês" : "Juros do mês";
+
+    if (covered) {
+      const monthNumber = countLoanBillingMonthsThrough(
         loan.billingStartMonth,
         year,
-        monthIndex,
-        loan._count.payments
-      )
-    ) {
+        monthIndex
+      );
+      const payment = loan.payments[monthNumber - 1];
+      addItem(date, {
+        id: `loan-interest-${loan.id}-${date}`,
+        clientName: loan.client.name,
+        label,
+        value: Number(payment?.interestValue ?? 0),
+        status: "received",
+      });
       continue;
     }
 
-    const date = localDateKey(due);
+    if (loan.status !== "ACTIVE") continue;
+
     addItem(date, {
       id: `loan-interest-${loan.id}-${date}`,
       clientName: loan.client.name,
-      label: view === "geral" ? "Empréstimo · Juros do mês" : "Juros do mês",
+      label,
       value: calcMonthlyInterest(
         Number(loan.remainingBalance),
         Number(loan.interestRate)
@@ -665,7 +697,12 @@ export async function getDashboardCalendar(viewInput?: string, month?: string) {
   const days = Array.from(buckets.values())
     .map((day) => ({
       ...day,
-      total: Math.round(day.total * 100) / 100,
+      total:
+        Math.round(
+          day.items
+            .filter((item) => item.status === day.status)
+            .reduce((sum, item) => sum + item.value, 0) * 100
+        ) / 100,
       items: day.items.sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR")),
     }))
     .sort((a, b) => a.date.localeCompare(b.date));

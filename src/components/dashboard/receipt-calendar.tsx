@@ -97,8 +97,12 @@ export function DashboardReceiptCalendar({
           Sem recebimento
         </span>
         <span className="inline-flex items-center gap-1.5">
+          <span className="h-3.5 w-3.5 rounded border border-blue-300 bg-blue-100" />
+          A receber
+        </span>
+        <span className="inline-flex items-center gap-1.5">
           <span className="h-3.5 w-3.5 rounded border border-emerald-300 bg-emerald-100" />
-          Recebimento
+          Recebido
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-3.5 w-3.5 rounded border border-red-300 bg-red-100" />
@@ -131,7 +135,8 @@ export function DashboardReceiptCalendar({
                 className={cn(
                   "flex h-14 flex-col items-center justify-center rounded-lg border px-0.5 text-center transition-colors sm:h-16",
                   status === "empty" && "border-slate-200 bg-white text-slate-700",
-                  status === "receive" &&
+                  status === "receive" && "border-blue-300 bg-blue-100 text-blue-950",
+                  status === "received" &&
                     "border-emerald-300 bg-emerald-100 text-emerald-950",
                   status === "overdue" && "border-red-300 bg-red-100 text-red-950",
                   isToday && "ring-2 ring-primary-600",
@@ -168,13 +173,21 @@ export function DashboardReceiptCalendar({
                     <p className="font-medium text-slate-800">{item.clientName}</p>
                     <p className="text-xs text-slate-500">
                       {item.label}
-                      {item.status === "overdue" ? " · Atrasado" : ""}
+                      {item.status === "overdue"
+                        ? " · Atrasado"
+                        : item.status === "received"
+                          ? " · Recebido"
+                          : " · A receber"}
                     </p>
                   </div>
                   <span
                     className={cn(
                       "shrink-0 font-medium",
-                      item.status === "overdue" ? "text-red-700" : "text-emerald-700"
+                      item.status === "overdue"
+                        ? "text-red-700"
+                        : item.status === "received"
+                          ? "text-emerald-700"
+                          : "text-blue-700"
                     )}
                   >
                     {formatCurrency(item.value)}
