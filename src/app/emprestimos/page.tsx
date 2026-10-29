@@ -1,9 +1,10 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getLoans } from "@/actions/loans";
+import { getLoans, parseLoanListStatus } from "@/actions/loans";
 import {
   calcMonthlyInterest,
   formatPaymentSchedule,
@@ -13,16 +14,34 @@ import {
 import { PAGE_SIZE } from "@/lib/pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ListSearch } from "@/components/ui/list-search";
+import { LoanStatusFilter } from "@/components/loans/loan-status-filter";
 import { Plus, Eye } from "lucide-react";
 
 interface PageProps {
-  searchParams: Promise<{ page?: string; search?: string }>;
+  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
+}
+
+function emptyMessage(status: string, search?: string) {
+  if (search) {
+    return `Nenhum empréstimo encontrado para "${search}".`;
+  }
+  if (status === "quitados") return "Nenhum empréstimo quitado.";
+  if (status === "todos") return "Nenhum empréstimo registrado.";
+  return "Nenhum empréstimo ativo.";
 }
 
 export default async function EmprestimosPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const search = params.search?.trim() || undefined;
-  const { items: loans, total, page, totalPages } = await getLoans(params.page, search);
+  const status = parseLoanListStatus(params.status);
+  const { items: loans, total, page, totalPages } = await getLoans(
+    params.page,
+    search,
+    status
+  );
+  const statusParam = status === "ativos" ? undefined : status;
+  const clearSearchHref =
+    status === "ativos" ? "/emprestimos" : `/emprestimos?status=${status}`;
 
   return (
     <AppLayout>
@@ -41,25 +60,32 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
+      <div className="mb-4">
+        <Suspense fallback={null}>
+          <LoanStatusFilter current={status} search={search} />
+        </Suspense>
+      </div>
+
       <ListSearch
         action="/emprestimos"
         defaultValue={search}
         placeholder="Buscar por cliente, telefone, CPF ou observação"
+        hiddenFields={{ status: statusParam }}
+        clearHref={clearSearchHref}
       />
 
       {total === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          {search ? (
-            <p className="text-slate-500">
-              Nenhum empréstimo encontrado para &quot;{search}&quot;.
-            </p>
-          ) : (
-            <>
-              <p className="text-slate-500">Nenhum empréstimo registrado.</p>
-              <Link href="/emprestimos/novo" className="mt-4 inline-block">
-                <Button>Registrar primeiro empréstimo</Button>
-              </Link>
-            </>
+          <p className="text-slate-500">{emptyMessage(status, search)}</p>
+          {!search && status === "todos" && (
+            <Link href="/emprestimos/novo" className="mt-4 inline-block">
+              <Button>Registrar primeiro empréstimo</Button>
+            </Link>
+          )}
+          {!search && status === "ativos" && (
+            <Link href="/emprestimos/novo" className="mt-4 inline-block">
+              <Button>Registrar primeiro empréstimo</Button>
+            </Link>
           )}
         </div>
       ) : (
@@ -143,7 +169,7 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
               currentPage={page}
               totalPages={totalPages}
               basePath="/emprestimos"
-              searchParams={{ search }}
+              searchParams={{ search, status: statusParam }}
             />
             <p className="mt-2 text-xs text-slate-400">
               Exibindo até {PAGE_SIZE} empréstimos por página

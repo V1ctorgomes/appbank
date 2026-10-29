@@ -68,6 +68,8 @@ export default async function ClientesPage({ searchParams }: PageProps) {
                   <th className="px-6 py-3 font-medium">Nome</th>
                   <th className="px-6 py-3 font-medium">Telefone</th>
                   <th className="px-6 py-3 font-medium">CPF</th>
+                  <th className="px-6 py-3 font-medium">Vendas</th>
+                  <th className="px-6 py-3 font-medium">Empréstimos</th>
                   <th className="px-6 py-3 font-medium">Saldo Devedor</th>
                   <th className="px-6 py-3 font-medium">Ações</th>
                 </tr>
@@ -80,6 +82,28 @@ export default async function ClientesPage({ searchParams }: PageProps) {
                       <td className="px-6 py-4 font-medium text-slate-800">{client.name}</td>
                       <td className="px-6 py-4 text-slate-600">{formatPhone(client.phone)}</td>
                       <td className="px-6 py-4 text-slate-600">{formatCpf(client.cpf)}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={
+                            client.salesBalance > 0
+                              ? "font-medium text-amber-700"
+                              : "text-slate-400"
+                          }
+                        >
+                          {formatCurrency(client.salesBalance)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={
+                            client.loansBalance > 0
+                              ? "font-medium text-amber-700"
+                              : "text-slate-400"
+                          }
+                        >
+                          {formatCurrency(client.loansBalance)}
+                        </span>
+                      </td>
                       <td className="px-6 py-4">
                         <span
                           className={

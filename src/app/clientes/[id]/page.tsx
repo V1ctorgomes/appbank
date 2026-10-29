@@ -18,14 +18,18 @@ export default async function ClienteDetailPage({
 
   if (!client) notFound();
 
-  let totalDebt = 0;
+  let salesDebt = 0;
   for (const sale of client.sales) {
     for (const inst of sale.installments) {
       if (inst.status === "PENDING" || inst.status === "OVERDUE") {
-        totalDebt += Number(inst.value);
+        salesDebt += Number(inst.value);
       }
     }
   }
+  const loansDebt = client.loans
+    .filter((loan) => loan.status === "ACTIVE")
+    .reduce((sum, loan) => sum + Number(loan.remainingBalance), 0);
+  const totalDebt = salesDebt + loansDebt;
 
   return (
     <AppLayout>
@@ -69,59 +73,111 @@ export default async function ClienteDetailPage({
         <Card>
           <p className="text-sm font-medium text-slate-500">Saldo Devedor</p>
           <p className="mt-1 text-3xl font-bold text-amber-700">{formatCurrency(totalDebt)}</p>
+          <dl className="mt-3 space-y-1 text-xs text-slate-500">
+            <div className="flex justify-between gap-3">
+              <dt>Vendas</dt>
+              <dd>{formatCurrency(salesDebt)}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt>Empréstimos</dt>
+              <dd>{formatCurrency(loansDebt)}</dd>
+            </div>
+          </dl>
         </Card>
       </div>
 
-      <Card title="Histórico de Vendas">
-        {client.sales.length === 0 ? (
-          <p className="text-sm text-slate-500">Nenhuma venda registrada para este cliente.</p>
-        ) : (
-          <div className="space-y-4">
-            {client.sales.map((sale) => (
-              <div key={sale.id} className="rounded-lg border border-slate-100 p-4">
-                <div className="flex items-center justify-between">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card title="Histórico de Vendas">
+          {client.sales.length === 0 ? (
+            <p className="text-sm text-slate-500">Nenhuma venda registrada para este cliente.</p>
+          ) : (
+            <div className="space-y-4">
+              {client.sales.map((sale) => (
+                <div key={sale.id} className="rounded-lg border border-slate-100 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-slate-800">
+                        Venda — {formatDate(sale.saleDate)}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {sale.type === "ITEMS" ? "Por itens" : "Valor direto"} ·{" "}
+                        {formatCurrency(Number(sale.totalValue))}
+                      </p>
+                    </div>
+                    <Link href={`/vendas/${sale.id}`}>
+                      <Button variant="ghost" size="sm">
+                        Ver
+                      </Button>
+                    </Link>
+                  </div>
+
+                  {sale.installments.length > 0 && (
+                    <div className="mt-3 overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-left text-slate-400">
+                            <th className="pb-2">Parcela</th>
+                            <th className="pb-2">Valor</th>
+                            <th className="pb-2">Vencimento</th>
+                            <th className="pb-2">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sale.installments.map((inst) => (
+                            <tr key={inst.id} className="border-t border-slate-50">
+                              <td className="py-2">{inst.number}</td>
+                              <td className="py-2">{formatCurrency(Number(inst.value))}</td>
+                              <td className="py-2">{formatDate(inst.dueDate)}</td>
+                              <td className="py-2">
+                                <StatusBadge status={inst.status} />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card title="Histórico de Empréstimos">
+          {client.loans.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              Nenhum empréstimo registrado para este cliente.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {client.loans.map((loan) => (
+                <div
+                  key={loan.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 p-4"
+                >
                   <div>
                     <p className="font-medium text-slate-800">
-                      Venda — {formatDate(sale.saleDate)}
+                      Empréstimo — {formatDate(loan.loanDate)}
                     </p>
                     <p className="text-sm text-slate-500">
-                      {sale.type === "ITEMS" ? "Por itens" : "Valor direto"} ·{" "}
-                      {formatCurrency(Number(sale.totalValue))}
+                      Principal {formatCurrency(Number(loan.principal))} · Saldo{" "}
+                      {formatCurrency(Number(loan.remainingBalance))}
                     </p>
+                    <div className="mt-1">
+                      <StatusBadge status={loan.status} />
+                    </div>
                   </div>
+                  <Link href={`/emprestimos/${loan.id}`}>
+                    <Button variant="ghost" size="sm">
+                      Ver
+                    </Button>
+                  </Link>
                 </div>
-
-                {sale.installments.length > 0 && (
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="text-left text-slate-400">
-                          <th className="pb-2">Parcela</th>
-                          <th className="pb-2">Valor</th>
-                          <th className="pb-2">Vencimento</th>
-                          <th className="pb-2">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sale.installments.map((inst) => (
-                          <tr key={inst.id} className="border-t border-slate-50">
-                            <td className="py-2">{inst.number}</td>
-                            <td className="py-2">{formatCurrency(Number(inst.value))}</td>
-                            <td className="py-2">{formatDate(inst.dueDate)}</td>
-                            <td className="py-2">
-                              <StatusBadge status={inst.status} />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
     </AppLayout>
   );
 }

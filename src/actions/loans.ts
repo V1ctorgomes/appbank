@@ -130,7 +130,18 @@ function resolveBillingFields(data: CreateLoanInput | UpdateLoanInput) {
   };
 }
 
-export async function getLoans(page?: string | number, search?: string) {
+export type LoanListStatus = "ativos" | "quitados" | "todos";
+
+export function parseLoanListStatus(value?: string): LoanListStatus {
+  if (value === "quitados" || value === "todos") return value;
+  return "ativos";
+}
+
+export async function getLoans(
+  page?: string | number,
+  search?: string,
+  statusFilter: LoanListStatus = "ativos"
+) {
   const user = await requireAuth();
   const term = search?.trim() ?? "";
   const digits = term.replace(/\D/g, "");
@@ -138,6 +149,11 @@ export async function getLoans(page?: string | number, search?: string) {
   const where = {
     userId: user.id,
     deletedAt: null,
+    ...(statusFilter === "ativos"
+      ? { status: "ACTIVE" as const }
+      : statusFilter === "quitados"
+        ? { status: "SETTLED" as const }
+        : {}),
     ...(term
       ? {
           OR: [

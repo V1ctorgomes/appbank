@@ -47,29 +47,51 @@ export async function getClients(search?: string, page?: string | number) {
     },
   });
 
-  const balances = new Map<string, number>();
+  const saleBalances = new Map<string, number>();
+  const loanBalances = new Map<string, number>();
   if (items.length > 0) {
-    const rows = await prisma.$queryRaw<Array<{ clientId: string; balance: unknown }>>(
-      Prisma.sql`
-        SELECT s."clientId" AS "clientId", COALESCE(SUM(i."value"), 0) AS balance
-        FROM "Sale" s
-        INNER JOIN "Installment" i ON i."saleId" = s."id"
-        WHERE s."userId" = ${user.id}
-          AND s."deletedAt" IS NULL
-          AND i."deletedAt" IS NULL
-          AND i."status"::text IN ('PENDING', 'OVERDUE')
-          AND s."clientId" IN (${Prisma.join(items.map((client) => client.id))})
-        GROUP BY s."clientId"
-      `
-    );
-    for (const row of rows) balances.set(row.clientId, Number(row.balance));
+    const clientIds = items.map((client) => client.id);
+    const [saleRows, loanRows] = await Promise.all([
+      prisma.$queryRaw<Array<{ clientId: string; balance: unknown }>>(
+        Prisma.sql`
+          SELECT s."clientId" AS "clientId", COALESCE(SUM(i."value"), 0) AS balance
+          FROM "Sale" s
+          INNER JOIN "Installment" i ON i."saleId" = s."id"
+          WHERE s."userId" = ${user.id}
+            AND s."deletedAt" IS NULL
+            AND i."deletedAt" IS NULL
+            AND i."status"::text IN ('PENDING', 'OVERDUE')
+            AND s."clientId" IN (${Prisma.join(clientIds)})
+          GROUP BY s."clientId"
+        `
+      ),
+      prisma.$queryRaw<Array<{ clientId: string; balance: unknown }>>(
+        Prisma.sql`
+          SELECT l."clientId" AS "clientId", COALESCE(SUM(l."remainingBalance"), 0) AS balance
+          FROM "Loan" l
+          WHERE l."userId" = ${user.id}
+            AND l."deletedAt" IS NULL
+            AND l."status"::text = 'ACTIVE'
+            AND l."clientId" IN (${Prisma.join(clientIds)})
+          GROUP BY l."clientId"
+        `
+      ),
+    ]);
+    for (const row of saleRows) saleBalances.set(row.clientId, Number(row.balance));
+    for (const row of loanRows) loanBalances.set(row.clientId, Number(row.balance));
   }
 
   return {
-    items: items.map((client) => ({
-      ...client,
-      balance: balances.get(client.id) ?? 0,
-    })),
+    items: items.map((client) => {
+      const salesBalance = saleBalances.get(client.id) ?? 0;
+      const loansBalance = loanBalances.get(client.id) ?? 0;
+      return {
+        ...client,
+        salesBalance,
+        loansBalance,
+        balance: salesBalance + loansBalance,
+      };
+    }),
     total,
     page: currentPage,
     totalPages: getTotalPages(total),
@@ -106,6 +128,19 @@ export async function getClient(id: string) {
               status: true,
             },
           },
+        },
+      },
+      loans: {
+        where: { deletedAt: null },
+        orderBy: { loanDate: "desc" },
+        select: {
+          id: true,
+          loanDate: true,
+          principal: true,
+          remainingBalance: true,
+          status: true,
+          interestRate: true,
+          paymentFrequency: true,
         },
       },
     },

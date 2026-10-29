@@ -7,22 +7,54 @@ import {
   getTransactionSummary,
   type TransactionFilters,
 } from "@/actions/transactions";
+import { isInstallmentFrequency, nextLoanDueDate } from "@/lib/loan-utils";
 
-export async function getAccountsReceivable() {
+export type AccountsReceivableItem = {
+  clientId: string;
+  clientName: string;
+  pendingValue: number;
+  salesPending: number;
+  loansPending: number;
+  pendingCount: number;
+  nextDue: Date | null;
+};
+
+export async function getAccountsReceivable(): Promise<AccountsReceivableItem[]> {
   const user = await requireAuth();
 
   const clients = await prisma.client.findMany({
     where: { userId: user.id, deletedAt: null },
-    include: {
+    select: {
+      id: true,
+      name: true,
       sales: {
         where: { deletedAt: null },
-        include: {
+        select: {
           installments: {
             where: {
               deletedAt: null,
               status: { in: ["PENDING", "OVERDUE"] },
             },
             orderBy: { dueDate: "asc" },
+            select: { value: true, dueDate: true },
+          },
+        },
+      },
+      loans: {
+        where: { deletedAt: null, status: "ACTIVE" },
+        select: {
+          remainingBalance: true,
+          interestRate: true,
+          paymentFrequency: true,
+          paymentDay: true,
+          billingStartMonth: true,
+          installments: {
+            where: {
+              deletedAt: null,
+              status: { in: ["PENDING", "OVERDUE"] },
+            },
+            orderBy: { dueDate: "asc" },
+            select: { dueDate: true },
           },
         },
       },
@@ -33,29 +65,41 @@ export async function getAccountsReceivable() {
   return clients
     .map((client) => {
       const pendingInstallments = client.sales.flatMap((s) => s.installments);
-      if (pendingInstallments.length === 0) return null;
-
-      const pendingValue = pendingInstallments.reduce(
+      const salesPending = pendingInstallments.reduce(
         (sum, i) => sum + Number(i.value),
         0
       );
-      const nextDue = pendingInstallments[0]?.dueDate ?? null;
+      const loansPending = client.loans.reduce(
+        (sum, loan) => sum + Number(loan.remainingBalance),
+        0
+      );
+      const pendingValue = salesPending + loansPending;
+      if (pendingValue <= 0) return null;
+
+      const dueDates: Date[] = pendingInstallments.map((i) => i.dueDate);
+      for (const loan of client.loans) {
+        if (isInstallmentFrequency(loan.paymentFrequency)) {
+          for (const inst of loan.installments) dueDates.push(inst.dueDate);
+        } else if (Number(loan.remainingBalance) > 0) {
+          dueDates.push(
+            nextLoanDueDate(loan.paymentDay, loan.billingStartMonth)
+          );
+        }
+      }
+      dueDates.sort((a, b) => a.getTime() - b.getTime());
 
       return {
         clientId: client.id,
         clientName: client.name,
         pendingValue,
-        pendingCount: pendingInstallments.length,
-        nextDue,
+        salesPending,
+        loansPending,
+        pendingCount: pendingInstallments.length + client.loans.length,
+        nextDue: dueDates[0] ?? null,
       };
     })
-    .filter(Boolean) as {
-    clientId: string;
-    clientName: string;
-    pendingValue: number;
-    pendingCount: number;
-    nextDue: Date;
-  }[];
+    .filter((item): item is AccountsReceivableItem => item !== null)
+    .sort((a, b) => b.pendingValue - a.pendingValue);
 }
 
 export async function getReportData(filters: TransactionFilters = {}) {
@@ -71,11 +115,21 @@ export async function getReportData(filters: TransactionFilters = {}) {
     (sum, a) => sum + a.pendingValue,
     0
   );
+  const totalSalesReceivable = accountsReceivable.reduce(
+    (sum, a) => sum + a.salesPending,
+    0
+  );
+  const totalLoansReceivable = accountsReceivable.reduce(
+    (sum, a) => sum + a.loansPending,
+    0
+  );
 
   return {
     summary,
     transactions,
     accountsReceivable,
     totalReceivable,
+    totalSalesReceivable,
+    totalLoansReceivable,
   };
 }

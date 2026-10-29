@@ -35,7 +35,7 @@ export default async function RelatoriosPage({ searchParams }: PageProps) {
         <ReportFilters defaultStart={defaultStart} defaultEnd={defaultEnd} />
       </Suspense>
 
-      <div className="my-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="my-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard
           title="Total de Entradas"
           value={formatCurrency(data.summary.income)}
@@ -52,6 +52,14 @@ export default async function RelatoriosPage({ searchParams }: PageProps) {
           variant={data.summary.balance >= 0 ? "income" : "expense"}
         />
         <StatCard
+          title="A Receber (Vendas)"
+          value={formatCurrency(data.totalSalesReceivable)}
+        />
+        <StatCard
+          title="A Receber (Empréstimos)"
+          value={formatCurrency(data.totalLoansReceivable)}
+        />
+        <StatCard
           title="Total a Receber"
           value={formatCurrency(data.totalReceivable)}
         />
@@ -66,8 +74,10 @@ export default async function RelatoriosPage({ searchParams }: PageProps) {
               <thead>
                 <tr className="border-b border-slate-200 text-left text-slate-500">
                   <th className="pb-3 font-medium">Cliente</th>
-                  <th className="pb-3 font-medium">Valor Pendente</th>
-                  <th className="pb-3 font-medium">Parcelas</th>
+                  <th className="pb-3 font-medium">Vendas</th>
+                  <th className="pb-3 font-medium">Empréstimos</th>
+                  <th className="pb-3 font-medium">Total Pendente</th>
+                  <th className="pb-3 font-medium">Itens</th>
                   <th className="pb-3 font-medium">Próximo Vencimento</th>
                 </tr>
               </thead>
@@ -82,12 +92,18 @@ export default async function RelatoriosPage({ searchParams }: PageProps) {
                         {item.clientName}
                       </Link>
                     </td>
+                    <td className="py-3 text-slate-600">
+                      {formatCurrency(item.salesPending)}
+                    </td>
+                    <td className="py-3 text-slate-600">
+                      {formatCurrency(item.loansPending)}
+                    </td>
                     <td className="py-3 font-medium text-amber-700">
                       {formatCurrency(item.pendingValue)}
                     </td>
                     <td className="py-3 text-slate-600">{item.pendingCount}</td>
                     <td className="py-3 text-slate-600">
-                      {formatDate(item.nextDue)}
+                      {item.nextDue ? formatDate(item.nextDue) : "—"}
                     </td>
                   </tr>
                 ))}
