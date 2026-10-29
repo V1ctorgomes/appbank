@@ -23,6 +23,7 @@ import {
   DEFAULT_LOAN_INSTALLMENT_COUNTS,
   monthInputFromDate,
   monthInputToDate,
+  type LoanListStatus,
 } from "@/lib/loan-utils";
 import { roundMoney } from "@/lib/sale-utils";
 import { PAGE_SIZE, parsePage, getTotalPages } from "@/lib/pagination";
@@ -128,13 +129,6 @@ function resolveBillingFields(data: CreateLoanInput | UpdateLoanInput) {
     installmentCount,
     installments,
   };
-}
-
-export type LoanListStatus = "ativos" | "quitados" | "todos";
-
-export function parseLoanListStatus(value?: string): LoanListStatus {
-  if (value === "quitados" || value === "todos") return value;
-  return "ativos";
 }
 
 export async function getLoans(

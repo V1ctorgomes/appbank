@@ -4,12 +4,13 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getLoans, parseLoanListStatus } from "@/actions/loans";
+import { getLoans } from "@/actions/loans";
 import {
   calcMonthlyInterest,
   formatPaymentSchedule,
   isInstallmentFrequency,
   loanFrequencyLabel,
+  parseLoanListStatus,
 } from "@/lib/loan-utils";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";

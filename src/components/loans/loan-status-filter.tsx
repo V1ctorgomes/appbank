@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import type { LoanListStatus } from "@/actions/loans";
+import type { LoanListStatus } from "@/lib/loan-utils";
 
 const options: { value: LoanListStatus; label: string }[] = [
   { value: "ativos", label: "Ativos" },

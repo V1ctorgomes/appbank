@@ -2,6 +2,13 @@ import { roundMoney } from "@/lib/sale-utils";
 
 export type LoanPaymentFrequency = "MONTHLY" | "WEEKLY" | "DAILY" | "BIWEEKLY";
 
+export type LoanListStatus = "ativos" | "quitados" | "todos";
+
+export function parseLoanListStatus(value?: string): LoanListStatus {
+  if (value === "quitados" || value === "todos") return value;
+  return "ativos";
+}
+
 export type LoanPaymentAllocationType =
   | "INTEREST_ONLY"
   | "INTEREST_AND_PARTIAL"

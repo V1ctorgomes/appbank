@@ -62,44 +62,43 @@ export async function getAccountsReceivable(): Promise<AccountsReceivableItem[]>
     orderBy: { name: "asc" },
   });
 
-  return clients
-    .map((client) => {
-      const pendingInstallments = client.sales.flatMap((s) => s.installments);
-      const salesPending = pendingInstallments.reduce(
-        (sum, i) => sum + Number(i.value),
-        0
-      );
-      const loansPending = client.loans.reduce(
-        (sum, loan) => sum + Number(loan.remainingBalance),
-        0
-      );
-      const pendingValue = salesPending + loansPending;
-      if (pendingValue <= 0) return null;
+  const items: AccountsReceivableItem[] = [];
 
-      const dueDates: Date[] = pendingInstallments.map((i) => i.dueDate);
-      for (const loan of client.loans) {
-        if (isInstallmentFrequency(loan.paymentFrequency)) {
-          for (const inst of loan.installments) dueDates.push(inst.dueDate);
-        } else if (Number(loan.remainingBalance) > 0) {
-          dueDates.push(
-            nextLoanDueDate(loan.paymentDay, loan.billingStartMonth)
-          );
-        }
+  for (const client of clients) {
+    const pendingInstallments = client.sales.flatMap((s) => s.installments);
+    const salesPending = pendingInstallments.reduce(
+      (sum, i) => sum + Number(i.value),
+      0
+    );
+    const loansPending = client.loans.reduce(
+      (sum, loan) => sum + Number(loan.remainingBalance),
+      0
+    );
+    const pendingValue = salesPending + loansPending;
+    if (pendingValue <= 0) continue;
+
+    const dueDates: Date[] = pendingInstallments.map((i) => i.dueDate);
+    for (const loan of client.loans) {
+      if (isInstallmentFrequency(loan.paymentFrequency)) {
+        for (const inst of loan.installments) dueDates.push(inst.dueDate);
+      } else if (Number(loan.remainingBalance) > 0) {
+        dueDates.push(nextLoanDueDate(loan.paymentDay, loan.billingStartMonth));
       }
-      dueDates.sort((a, b) => a.getTime() - b.getTime());
+    }
+    dueDates.sort((a, b) => a.getTime() - b.getTime());
 
-      return {
-        clientId: client.id,
-        clientName: client.name,
-        pendingValue,
-        salesPending,
-        loansPending,
-        pendingCount: pendingInstallments.length + client.loans.length,
-        nextDue: dueDates[0] ?? null,
-      };
-    })
-    .filter((item): item is AccountsReceivableItem => item !== null)
-    .sort((a, b) => b.pendingValue - a.pendingValue);
+    items.push({
+      clientId: client.id,
+      clientName: client.name,
+      pendingValue,
+      salesPending,
+      loansPending,
+      pendingCount: pendingInstallments.length + client.loans.length,
+      nextDue: dueDates[0] ?? null,
+    });
+  }
+
+  return items.sort((a, b) => b.pendingValue - a.pendingValue);
 }
 
 export async function getReportData(filters: TransactionFilters = {}) {
