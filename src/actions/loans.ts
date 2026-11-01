@@ -323,6 +323,18 @@ export async function updateLoan(id: string, input: UpdateLoanInput) {
     include: {
       client: true,
       payments: { where: { deletedAt: null }, select: { id: true } },
+      installments: {
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          number: true,
+          value: true,
+          dueDate: true,
+          status: true,
+          loanPaymentId: true,
+        },
+        orderBy: { number: "asc" },
+      },
     },
   });
 
@@ -330,17 +342,34 @@ export async function updateLoan(id: string, input: UpdateLoanInput) {
     return { error: "Empréstimo não encontrado" };
   }
 
-  if (loan.payments.length > 0) {
-    return {
-      error: "Não é possível editar um empréstimo que já possui pagamentos.",
-    };
-  }
-
   if (loan.status !== "ACTIVE") {
     return { error: "Só é possível editar empréstimos ativos." };
   }
 
   const data = parsed.data;
+  const hasPayments = loan.payments.length > 0;
+  const paidInstallments = loan.installments.filter((i) => i.status === "PAID");
+  const paidCount = paidInstallments.length;
+  const paidSum = roundMoney(
+    paidInstallments.reduce((sum, i) => sum + Number(i.value), 0)
+  );
+  const wasInstallment = isInstallmentFrequency(loan.paymentFrequency);
+  const willBeInstallment = isInstallmentFrequency(data.paymentFrequency);
+
+  if (hasPayments && wasInstallment !== willBeInstallment) {
+    return {
+      error: wasInstallment
+        ? "Com pagamentos registrados, mantenha a cobrança em parcelas (diária/semanal/quinzenal)."
+        : "Com pagamentos registrados, mantenha a cobrança mensal.",
+    };
+  }
+
+  if (willBeInstallment && data.installmentCount != null && data.installmentCount < paidCount) {
+    return {
+      error: `Já existem ${paidCount} parcela(s) paga(s). A quantidade não pode ser menor que isso.`,
+    };
+  }
+
   const amount = roundMoney(data.principal);
   const resolved = resolveBillingFields(data);
 
@@ -352,14 +381,72 @@ export async function updateLoan(id: string, input: UpdateLoanInput) {
     return { error: "Cliente não encontrado" };
   }
 
-  const remainingBalance = resolved.totalDue ?? amount;
-  const oldPrincipal = Number(loan.principal);
-  const oldDate = loan.loanDate;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  let remainingBalance: number;
+  let installmentsToCreate: { number: number; value: number; dueDate: string }[] =
+    [];
+
+  if (willBeInstallment) {
+    const totalDue = resolved.totalDue ?? calcLoanTotalDue(amount, data.interestRate);
+    if (paidSum > totalDue) {
+      return {
+        error: `O total do empréstimo (${totalDue.toFixed(2)}) não pode ser menor que o já pago (${paidSum.toFixed(2)}).`,
+      };
+    }
+
+    const unpaidCount = (resolved.installmentCount ?? 0) - paidCount;
+    const unpaidTotal = roundMoney(totalDue - paidSum);
+    remainingBalance = unpaidTotal;
+
+    if (unpaidCount > 0) {
+      let startDate = data.billingStartDate!;
+      if (paidCount > 0) {
+        const lastPaidDue = paidInstallments.reduce(
+          (max, i) => (i.dueDate > max ? i.dueDate : max),
+          paidInstallments[0].dueDate
+        );
+        const next = new Date(lastPaidDue);
+        next.setDate(next.getDate() + 1);
+        const nextStr = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;
+        if (nextStr > startDate) startDate = nextStr;
+      }
+
+      const generated = generateLoanInstallments({
+        frequency: resolved.paymentFrequency as "WEEKLY" | "DAILY" | "BIWEEKLY",
+        totalDue: unpaidTotal,
+        billingStartDate: startDate,
+        weekday: resolved.weekday ?? undefined,
+        paymentDay: resolved.paymentDay,
+        paymentDay2: resolved.paymentDay2 ?? undefined,
+        installmentCount: unpaidCount,
+        activeWeekdays: resolved.activeWeekdays,
+      });
+
+      installmentsToCreate = generated.map((inst, index) => ({
+        ...inst,
+        number: paidCount + index + 1,
+      }));
+    }
+  } else {
+    // Mensal: preserva o saldo em aberto se já houve pagamento.
+    remainingBalance = hasPayments
+      ? Number(loan.remainingBalance)
+      : amount;
+  }
+
+  const oldPrincipal = Number(loan.principal);
+  const oldDate = loan.loanDate;
+
   await prisma.$transaction(async (tx) => {
-    await tx.loanInstallment.deleteMany({ where: { loanId: id } });
+    // Remove só parcelas em aberto — pagas ficam intactas.
+    await tx.loanInstallment.deleteMany({
+      where: {
+        loanId: id,
+        status: { not: "PAID" },
+      },
+    });
 
     await tx.loan.update({
       where: { id },
@@ -380,9 +467,9 @@ export async function updateLoan(id: string, input: UpdateLoanInput) {
         loanDate: new Date(data.loanDate + "T12:00:00"),
         notes: data.notes || null,
         installments:
-          resolved.installments.length > 0
+          installmentsToCreate.length > 0
             ? {
-                create: resolved.installments.map((inst) => {
+                create: installmentsToCreate.map((inst) => {
                   const dueDate = new Date(inst.dueDate + "T12:00:00");
                   return {
                     number: inst.number,
@@ -396,40 +483,43 @@ export async function updateLoan(id: string, input: UpdateLoanInput) {
       },
     });
 
-    const disbursement = await tx.transaction.findFirst({
-      where: {
-        userId: user.id,
-        origin: "LOAN_DISBURSEMENT",
-        deletedAt: null,
-        value: oldPrincipal,
-        date: oldDate,
-        description: { startsWith: "Empréstimo liberado" },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (disbursement) {
-      await tx.transaction.update({
-        where: { id: disbursement.id },
-        data: {
-          description: `Empréstimo liberado — ${client.name}`,
-          value: amount,
-          date: new Date(data.loanDate + "T12:00:00"),
-          notes: data.notes || null,
-        },
-      });
-    } else {
-      await tx.transaction.create({
-        data: {
+    // Com pagamentos, não altera a liberação já lançada no caixa.
+    if (!hasPayments) {
+      const disbursement = await tx.transaction.findFirst({
+        where: {
           userId: user.id,
-          type: "EXPENSE",
           origin: "LOAN_DISBURSEMENT",
-          description: `Empréstimo liberado — ${client.name}`,
-          value: amount,
-          date: new Date(data.loanDate + "T12:00:00"),
-          notes: data.notes || null,
+          deletedAt: null,
+          value: oldPrincipal,
+          date: oldDate,
+          description: { startsWith: "Empréstimo liberado" },
         },
+        orderBy: { createdAt: "desc" },
       });
+
+      if (disbursement) {
+        await tx.transaction.update({
+          where: { id: disbursement.id },
+          data: {
+            description: `Empréstimo liberado — ${client.name}`,
+            value: amount,
+            date: new Date(data.loanDate + "T12:00:00"),
+            notes: data.notes || null,
+          },
+        });
+      } else {
+        await tx.transaction.create({
+          data: {
+            userId: user.id,
+            type: "EXPENSE",
+            origin: "LOAN_DISBURSEMENT",
+            description: `Empréstimo liberado — ${client.name}`,
+            value: amount,
+            date: new Date(data.loanDate + "T12:00:00"),
+            notes: data.notes || null,
+          },
+        });
+      }
     }
   });
 

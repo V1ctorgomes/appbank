@@ -78,7 +78,8 @@ export function LoanDetail({ loan }: LoanDetailProps) {
     interestRate: rate,
   });
   const isActive = loan.status === "ACTIVE";
-  const canEdit = isActive && loan.payments.length === 0;
+  const canEdit = isActive;
+  const canDelete = isActive && loan.payments.length === 0;
   const latestPaymentId = loan.payments[0]?.id;
 
   const loanPaymentInfo = {
@@ -155,7 +156,7 @@ export function LoanDetail({ loan }: LoanDetailProps) {
               label={isInstallment ? "Quitar" : undefined}
             />
           )}
-          {canEdit && (
+          {canDelete && (
             <Button variant="danger" size="sm" onClick={handleDelete} disabled={loading}>
               <Trash2 className="mr-1 h-4 w-4" />
               Excluir

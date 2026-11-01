@@ -31,6 +31,8 @@ import { ArrowLeft } from "lucide-react";
 
 interface EditLoanFormProps {
   clients: { id: string; name: string }[];
+  hasPayments?: boolean;
+  paidInstallmentCount?: number;
   loan: {
     id: string;
     clientId: string;
@@ -53,7 +55,12 @@ function toDateInput(date: Date) {
   return new Date(date).toISOString().slice(0, 10);
 }
 
-export function EditLoanForm({ clients, loan }: EditLoanFormProps) {
+export function EditLoanForm({
+  clients,
+  loan,
+  hasPayments = false,
+  paidInstallmentCount = 0,
+}: EditLoanFormProps) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -203,11 +210,23 @@ export function EditLoanForm({ clients, loan }: EditLoanFormProps) {
         </Link>
         <h1 className="mt-2 text-2xl font-bold text-slate-900">Editar Empréstimo</h1>
         <p className="text-slate-500">
-          Só é possível editar enquanto nenhum pagamento tiver sido registrado.
+          {hasPayments
+            ? "Pagamentos já feitos ficam preservados; só as parcelas em aberto são recalculadas."
+            : "Ajuste os dados do empréstimo antes ou depois de receber."}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-6">
+        {hasPayments && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Este empréstimo já tem recebimentos. O histórico pago não será alterado
+            {paidInstallmentCount > 0
+              ? ` (${paidInstallmentCount} parcela${paidInstallmentCount > 1 ? "s" : ""} paga${paidInstallmentCount > 1 ? "s" : ""})`
+              : ""}
+            .
+          </p>
+        )}
+
         <Card title="Dados do empréstimo">
           <div className="space-y-4">
             <Select
@@ -249,12 +268,22 @@ export function EditLoanForm({ clients, loan }: EditLoanFormProps) {
               onChange={(e) =>
                 handleFrequencyChange(e.target.value as LoanPaymentFrequency)
               }
-              options={[
-                { value: "MONTHLY", label: "Mensal" },
-                { value: "BIWEEKLY", label: "Quinzenal" },
-                { value: "WEEKLY", label: "Semanal" },
-                { value: "DAILY", label: "Diária" },
-              ]}
+              options={
+                hasPayments && isInstallmentFrequency(loan.paymentFrequency)
+                  ? [
+                      { value: "BIWEEKLY", label: "Quinzenal" },
+                      { value: "WEEKLY", label: "Semanal" },
+                      { value: "DAILY", label: "Diária" },
+                    ]
+                  : hasPayments && loan.paymentFrequency === "MONTHLY"
+                    ? [{ value: "MONTHLY", label: "Mensal" }]
+                    : [
+                        { value: "MONTHLY", label: "Mensal" },
+                        { value: "BIWEEKLY", label: "Quinzenal" },
+                        { value: "WEEKLY", label: "Semanal" },
+                        { value: "DAILY", label: "Diária" },
+                      ]
+              }
               required
             />
 
@@ -353,7 +382,7 @@ export function EditLoanForm({ clients, loan }: EditLoanFormProps) {
               <Input
                 label={`${installmentCountLabel(paymentFrequency)} *`}
                 type="number"
-                min="1"
+                min={String(Math.max(1, paidInstallmentCount))}
                 max={String(MAX_LOAN_INSTALLMENTS)}
                 step="1"
                 value={installmentCount}

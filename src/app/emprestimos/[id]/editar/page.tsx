@@ -13,13 +13,19 @@ export default async function EditarEmprestimoPage({
 
   if (!loan) notFound();
 
-  if (loan.payments.length > 0 || loan.status !== "ACTIVE") {
+  if (loan.status !== "ACTIVE") {
     redirect(`/emprestimos/${id}`);
   }
+
+  const paidInstallmentCount = loan.installments.filter(
+    (i) => i.status === "PAID"
+  ).length;
 
   return (
     <EditLoanForm
       clients={clients}
+      hasPayments={loan.payments.length > 0}
+      paidInstallmentCount={paidInstallmentCount}
       loan={{
         id: loan.id,
         clientId: loan.clientId,
