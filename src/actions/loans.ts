@@ -49,6 +49,7 @@ function resolveBillingFields(data: CreateLoanInput | UpdateLoanInput) {
       paymentDay,
       paymentDay2: null as number | null,
       weekday: null as number | null,
+      activeWeekdays: [] as number[],
       billingStartMonth: monthInputToDate(billingStartMonth),
       billingStartDate: null as Date | null,
       totalDue: null as number | null,
@@ -78,6 +79,7 @@ function resolveBillingFields(data: CreateLoanInput | UpdateLoanInput) {
       paymentDay: weekday === 0 ? 7 : weekday,
       paymentDay2: null as number | null,
       weekday,
+      activeWeekdays: [] as number[],
       billingStartMonth,
       billingStartDate,
       totalDue,
@@ -88,17 +90,22 @@ function resolveBillingFields(data: CreateLoanInput | UpdateLoanInput) {
 
   if (frequency === "DAILY") {
     const day = Number(billingStartDateStr.slice(8, 10)) || 1;
+    const activeWeekdays = [...new Set(data.activeWeekdays ?? [])].sort(
+      (a, b) => a - b
+    );
     const installments = generateLoanInstallments({
       frequency: "DAILY",
       totalDue,
       billingStartDate: billingStartDateStr,
       installmentCount,
+      activeWeekdays,
     });
     return {
       paymentFrequency: "DAILY" as const,
       paymentDay: day,
       paymentDay2: null as number | null,
       weekday: null as number | null,
+      activeWeekdays,
       billingStartMonth,
       billingStartDate,
       totalDue,
@@ -123,6 +130,7 @@ function resolveBillingFields(data: CreateLoanInput | UpdateLoanInput) {
     paymentDay,
     paymentDay2,
     weekday: null as number | null,
+    activeWeekdays: [] as number[],
     billingStartMonth,
     billingStartDate,
     totalDue,
@@ -182,6 +190,7 @@ export async function getLoans(
       paymentDay: true,
       paymentDay2: true,
       weekday: true,
+      activeWeekdays: true,
       billingStartMonth: true,
       billingStartDate: true,
       totalDue: true,
@@ -256,6 +265,7 @@ export async function createLoan(input: CreateLoanInput) {
         paymentDay: resolved.paymentDay,
         paymentDay2: resolved.paymentDay2,
         weekday: resolved.weekday,
+        activeWeekdays: resolved.activeWeekdays,
         billingStartMonth: resolved.billingStartMonth,
         billingStartDate: resolved.billingStartDate,
         totalDue: resolved.totalDue,
@@ -362,6 +372,7 @@ export async function updateLoan(id: string, input: UpdateLoanInput) {
         paymentDay: resolved.paymentDay,
         paymentDay2: resolved.paymentDay2,
         weekday: resolved.weekday,
+        activeWeekdays: resolved.activeWeekdays,
         billingStartMonth: resolved.billingStartMonth,
         billingStartDate: resolved.billingStartDate,
         totalDue: resolved.totalDue,

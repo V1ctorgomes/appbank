@@ -31,6 +31,7 @@ interface LoanDetailProps {
     paymentDay: number;
     paymentDay2: number | null;
     weekday: number | null;
+    activeWeekdays: number[];
     billingStartMonth: Date;
     billingStartDate: Date | null;
     totalDue: unknown;
@@ -89,6 +90,7 @@ export function LoanDetail({ loan }: LoanDetailProps) {
     paymentDay: loan.paymentDay,
     paymentDay2: loan.paymentDay2,
     weekday: loan.weekday,
+    activeWeekdays: loan.activeWeekdays,
     billingStartMonth: loan.billingStartMonth,
     billingStartDate: loan.billingStartDate,
   };
@@ -218,6 +220,7 @@ export function LoanDetail({ loan }: LoanDetailProps) {
                   weekday: loan.weekday,
                   paymentDay2: loan.paymentDay2,
                   billingStartDate: loan.billingStartDate,
+                  activeWeekdays: loan.activeWeekdays,
                 })}
               </dd>
             </div>

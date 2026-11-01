@@ -217,6 +217,9 @@ export const createLoanSchema = z
       .min(0, "Dia da semana inválido")
       .max(6, "Dia da semana inválido")
       .optional(),
+    activeWeekdays: z
+      .array(z.coerce.number().int().min(0).max(6))
+      .optional(),
     billingStartMonth: z
       .string()
       .regex(/^\d{4}-\d{2}$/, "Informe o mês de início da cobrança")
@@ -264,6 +267,16 @@ export const createLoanSchema = z
         message: "Escolha o dia da semana",
         path: ["weekday"],
       });
+    }
+
+    if (data.paymentFrequency === "DAILY") {
+      if (!data.activeWeekdays || data.activeWeekdays.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Selecione pelo menos um dia da semana",
+          path: ["activeWeekdays"],
+        });
+      }
     }
 
     if (data.paymentFrequency === "BIWEEKLY") {

@@ -34,6 +34,7 @@ export type PortalLoan = {
   paymentDay: number;
   paymentDay2: number | null;
   weekday: number | null;
+  activeWeekdays: number[];
   billingStartMonth: string;
   billingStartDate: string | null;
   monthlyInterest: number;
@@ -134,6 +135,7 @@ export async function lookupClientByCpf(cpf: string): Promise<PortalLookupResult
         paymentDay: true,
         paymentDay2: true,
         weekday: true,
+        activeWeekdays: true,
         billingStartMonth: true,
         billingStartDate: true,
         status: true,
@@ -252,6 +254,7 @@ export async function lookupClientByCpf(cpf: string): Promise<PortalLookupResult
       paymentDay: loan.paymentDay,
       paymentDay2: loan.paymentDay2,
       weekday: loan.weekday,
+      activeWeekdays: loan.activeWeekdays ?? [],
       billingStartMonth: loan.billingStartMonth.toISOString(),
       billingStartDate: loan.billingStartDate?.toISOString() ?? null,
       monthlyInterest,

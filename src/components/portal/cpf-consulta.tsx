@@ -84,6 +84,7 @@ function ConsultaResult({ data }: { data: PortalClientData }) {
                         weekday: loan.weekday,
                         paymentDay2: loan.paymentDay2,
                         billingStartDate: loan.billingStartDate,
+                        activeWeekdays: loan.activeWeekdays,
                       })}
                     </p>
                   </div>

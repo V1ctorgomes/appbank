@@ -146,6 +146,7 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
                           weekday: loan.weekday,
                           paymentDay2: loan.paymentDay2,
                           billingStartDate: loan.billingStartDate,
+                          activeWeekdays: loan.activeWeekdays,
                         })}
                       </td>
                       <td className="px-6 py-4">

@@ -9,10 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { createLoan } from "@/actions/loans";
+import { WeekdayMultiSelect } from "@/components/loans/weekday-multi-select";
 import {
   calcLoanTotalDue,
   calcMonthlyInterest,
   formatBillingMonth,
+  DEFAULT_DAILY_WEEKDAYS,
   DEFAULT_LOAN_INSTALLMENT_COUNTS,
   generateLoanInstallments,
   installmentCountLabel,
@@ -44,6 +46,9 @@ export function LoanForm({ clients }: LoanFormProps) {
   const [paymentDay, setPaymentDay] = useState(String(new Date().getDate()));
   const [paymentDay2, setPaymentDay2] = useState("16");
   const [weekday, setWeekday] = useState("1");
+  const [activeWeekdays, setActiveWeekdays] = useState<number[]>([
+    ...DEFAULT_DAILY_WEEKDAYS,
+  ]);
   const [billingStartMonth, setBillingStartMonth] = useState(
     monthInputFromDate(new Date())
   );
@@ -87,6 +92,8 @@ export function LoanForm({ clients }: LoanFormProps) {
         paymentDay: paymentDayNum,
         paymentDay2: paymentDay2Num,
         installmentCount: installmentCountNum,
+        activeWeekdays:
+          paymentFrequency === "DAILY" ? activeWeekdays : undefined,
       });
     } catch {
       return [];
@@ -100,6 +107,7 @@ export function LoanForm({ clients }: LoanFormProps) {
     paymentDayNum,
     paymentDay2Num,
     installmentCountNum,
+    activeWeekdays,
   ]);
 
   function handleFrequencyChange(next: LoanPaymentFrequency) {
@@ -107,6 +115,9 @@ export function LoanForm({ clients }: LoanFormProps) {
     setInstallmentCount(
       isInstallmentFrequency(next) ? String(DEFAULT_LOAN_INSTALLMENT_COUNTS[next]) : ""
     );
+    if (next === "DAILY" && activeWeekdays.length === 0) {
+      setActiveWeekdays([...DEFAULT_DAILY_WEEKDAYS]);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -125,6 +136,8 @@ export function LoanForm({ clients }: LoanFormProps) {
           : undefined,
       paymentDay2: paymentFrequency === "BIWEEKLY" ? paymentDay2Num : undefined,
       weekday: paymentFrequency === "WEEKLY" ? weekdayNum : undefined,
+      activeWeekdays:
+        paymentFrequency === "DAILY" ? activeWeekdays : undefined,
       billingStartMonth:
         paymentFrequency === "MONTHLY" ? billingStartMonth : undefined,
       billingStartDate:
@@ -269,13 +282,19 @@ export function LoanForm({ clients }: LoanFormProps) {
             )}
 
             {paymentFrequency === "DAILY" && (
-              <Input
-                label="Data que inicia a cobrança *"
-                type="date"
-                value={billingStartDate}
-                onChange={(e) => setBillingStartDate(e.target.value)}
-                required
-              />
+              <div className="space-y-4">
+                <Input
+                  label="Data que inicia a cobrança *"
+                  type="date"
+                  value={billingStartDate}
+                  onChange={(e) => setBillingStartDate(e.target.value)}
+                  required
+                />
+                <WeekdayMultiSelect
+                  value={activeWeekdays}
+                  onChange={setActiveWeekdays}
+                />
+              </div>
             )}
 
             {paymentFrequency === "BIWEEKLY" && (

@@ -24,6 +24,7 @@ export interface LoanPaymentInfo {
   paymentDay?: number;
   paymentDay2?: number | null;
   weekday?: number | null;
+  activeWeekdays?: number[];
   billingStartMonth?: Date | string;
   billingStartDate?: Date | string | null;
 }
@@ -119,6 +120,7 @@ export function LoanPaymentModal({
           weekday: loan.weekday,
           paymentDay2: loan.paymentDay2,
           billingStartDate: loan.billingStartDate,
+          activeWeekdays: loan.activeWeekdays,
         })
       : null;
 

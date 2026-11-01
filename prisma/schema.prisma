@@ -235,6 +235,8 @@ model Loan {
   paymentDay        Int
   paymentDay2       Int?
   weekday           Int?
+  /// Dias da semana cobrados na diária (0=dom … 6=sáb). Vazio = todos os dias.
+  activeWeekdays    Int[]                 @default([])
   billingStartMonth DateTime              @db.Date
   billingStartDate  DateTime?             @db.Date
   totalDue          Decimal?              @db.Decimal(12, 2)

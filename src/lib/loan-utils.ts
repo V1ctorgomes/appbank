@@ -60,6 +60,52 @@ export const WEEKDAY_OPTIONS = [
   { value: "0", label: "Domingo" },
 ] as const;
 
+/** Ordem de exibição: seg → dom */
+export const WEEKDAY_CHECKBOX_OPTIONS = [
+  { value: 1, short: "Seg", label: "Segunda" },
+  { value: 2, short: "Ter", label: "Terça" },
+  { value: 3, short: "Qua", label: "Quarta" },
+  { value: 4, short: "Qui", label: "Quinta" },
+  { value: 5, short: "Sex", label: "Sexta" },
+  { value: 6, short: "Sáb", label: "Sábado" },
+  { value: 0, short: "Dom", label: "Domingo" },
+] as const;
+
+/** Padrão da diária: segunda a sábado (sem domingo). */
+export const DEFAULT_DAILY_WEEKDAYS = [1, 2, 3, 4, 5, 6];
+
+export const ALL_WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
+
+/** Vazio/null = todos os dias (compatível com empréstimos antigos). */
+export function normalizeActiveWeekdays(
+  days?: number[] | null
+): number[] {
+  if (!days || days.length === 0) return [...ALL_WEEKDAYS];
+  const unique = [...new Set(days.filter((d) => d >= 0 && d <= 6))];
+  return unique.sort((a, b) => {
+    const order = (d: number) => (d === 0 ? 7 : d);
+    return order(a) - order(b);
+  });
+}
+
+export function formatActiveWeekdays(days?: number[] | null): string {
+  const normalized = normalizeActiveWeekdays(days);
+  if (normalized.length === 7) return "todos os dias";
+  if (
+    normalized.length === 6 &&
+    normalized.every((d) => d !== 0) &&
+    DEFAULT_DAILY_WEEKDAYS.every((d) => normalized.includes(d))
+  ) {
+    return "segunda a sábado";
+  }
+  return normalized
+    .map(
+      (d) =>
+        WEEKDAY_CHECKBOX_OPTIONS.find((o) => o.value === d)?.short ?? String(d)
+    )
+    .join(", ");
+}
+
 export function isInstallmentFrequency(
   frequency: string | null | undefined
 ): frequency is "WEEKLY" | "DAILY" | "BIWEEKLY" {
@@ -236,6 +282,7 @@ export function formatPaymentSchedule(
     weekday?: number | null;
     paymentDay2?: number | null;
     billingStartDate?: Date | string | null;
+    activeWeekdays?: number[] | null;
   }
 ): string {
   const frequency = opts?.paymentFrequency ?? "MONTHLY";
@@ -248,7 +295,8 @@ export function formatPaymentSchedule(
       year: "numeric",
       timeZone: "UTC",
     }).format(typeof start === "string" ? new Date(start) : start);
-    return `Diária a partir de ${startLabel}`;
+    const daysLabel = formatActiveWeekdays(opts?.activeWeekdays);
+    return `Diária (${daysLabel}) a partir de ${startLabel}`;
   }
 
   if (frequency === "WEEKLY") {
@@ -342,6 +390,7 @@ export function generateLoanInstallments(input: {
   paymentDay?: number;
   paymentDay2?: number;
   installmentCount?: number;
+  activeWeekdays?: number[];
 }): GeneratedLoanInstallment[] {
   const count = input.installmentCount ?? DEFAULT_LOAN_INSTALLMENT_COUNTS[input.frequency];
   const values = splitInstallmentValues(input.totalDue, count);
@@ -349,8 +398,15 @@ export function generateLoanInstallments(input: {
   const dueDates: Date[] = [];
 
   if (input.frequency === "DAILY") {
-    for (let i = 0; i < count; i++) {
-      dueDates.push(addDays(start, i));
+    const weekdays = new Set(normalizeActiveWeekdays(input.activeWeekdays));
+    let cursor = new Date(start);
+    let safety = 0;
+    while (dueDates.length < count && safety < count * 14) {
+      if (weekdays.has(cursor.getDay())) {
+        dueDates.push(new Date(cursor));
+      }
+      cursor = addDays(cursor, 1);
+      safety += 1;
     }
   } else if (input.frequency === "WEEKLY") {
     const weekday = input.weekday ?? 1;
