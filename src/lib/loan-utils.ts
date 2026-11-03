@@ -120,15 +120,17 @@ export function calcLoanTotalDue(principal: number, interestRate: number): numbe
   return roundMoney(principal + calcMonthlyInterest(principal, interestRate));
 }
 
+type MoneyLike = number | string | { toString(): string };
+
 /**
  * Capital ainda em aberto (sem juros embutidos).
  * Em diária/semanal/quinzenal o remainingBalance começa no totalDue (capital+juros);
  * aqui devolve a parcela proporcional do principal.
  */
 export function remainingLoanCapital(input: {
-  principal: number | string;
-  remainingBalance: number | string;
-  totalDue?: number | string | null;
+  principal: MoneyLike;
+  remainingBalance: MoneyLike;
+  totalDue?: MoneyLike | null;
 }): number {
   const principal = roundMoney(Number(input.principal));
   const remaining = roundMoney(Number(input.remainingBalance));
