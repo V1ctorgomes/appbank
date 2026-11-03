@@ -18,10 +18,8 @@ interface PageProps {
 export default async function VendasPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const search = params.search?.trim() || undefined;
-  const { items: sales, total, totalValue, page, totalPages } = await getSales(
-    params.page,
-    search
-  );
+  const { items: sales, total, openSalesCount, openSalesValue, page, totalPages } =
+    await getSales(params.page, search);
 
   return (
     <AppLayout>
@@ -41,11 +39,15 @@ export default async function VendasPage({ searchParams }: PageProps) {
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
-        <StatCard title="Quantidade de Vendas" value={String(total)} />
         <StatCard
-          title="Total de Vendas"
-          value={formatCurrency(totalValue)}
-          subtitle={search ? "Com o filtro atual" : "Valor total vendido"}
+          title="Vendas em Aberto"
+          value={String(openSalesCount)}
+          subtitle="Sem contar as quitadas"
+        />
+        <StatCard
+          title="Total em Aberto"
+          value={formatCurrency(openSalesValue)}
+          subtitle="Parcelas ainda a receber"
         />
       </div>
 

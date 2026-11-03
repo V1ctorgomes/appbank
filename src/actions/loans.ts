@@ -23,6 +23,7 @@ import {
   DEFAULT_LOAN_INSTALLMENT_COUNTS,
   monthInputFromDate,
   monthInputToDate,
+  remainingLoanCapital,
   type LoanListStatus,
 } from "@/lib/loan-utils";
 import { roundMoney } from "@/lib/sale-utils";
@@ -177,10 +178,20 @@ export async function getLoans(
   const currentPage = Math.min(parsePage(page), totalPages);
   const skip = (currentPage - 1) * PAGE_SIZE;
 
-  const [principalAgg, items] = await Promise.all([
-    prisma.loan.aggregate({
-      where,
-      _sum: { principal: true },
+  const activeWhere = {
+    userId: user.id,
+    deletedAt: null,
+    status: "ACTIVE" as const,
+  };
+
+  const [activeLoans, items] = await Promise.all([
+    prisma.loan.findMany({
+      where: activeWhere,
+      select: {
+        principal: true,
+        remainingBalance: true,
+        totalDue: true,
+      },
     }),
     prisma.loan.findMany({
       where,
@@ -208,10 +219,23 @@ export async function getLoans(
     }),
   ]);
 
+  const activeCount = activeLoans.length;
+  const activeCapital = activeLoans.reduce(
+    (sum, loan) =>
+      sum +
+      remainingLoanCapital({
+        principal: loan.principal,
+        remainingBalance: loan.remainingBalance,
+        totalDue: loan.totalDue,
+      }),
+    0
+  );
+
   return {
     items,
     total,
-    totalPrincipal: Number(principalAgg._sum.principal ?? 0),
+    activeCount,
+    activeCapital,
     page: currentPage,
     totalPages,
   };

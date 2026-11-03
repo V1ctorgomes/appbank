@@ -36,20 +36,11 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const search = params.search?.trim() || undefined;
   const status = parseLoanListStatus(params.status);
-  const { items: loans, total, totalPrincipal, page, totalPages } = await getLoans(
-    params.page,
-    search,
-    status
-  );
+  const { items: loans, total, activeCount, activeCapital, page, totalPages } =
+    await getLoans(params.page, search, status);
   const statusParam = status === "ativos" ? undefined : status;
   const clearSearchHref =
     status === "ativos" ? "/emprestimos" : `/emprestimos?status=${status}`;
-  const principalSubtitle =
-    status === "quitados"
-      ? "Capital dos quitados"
-      : status === "todos"
-        ? "Capital de todos os empréstimos"
-        : "Capital dos ativos";
 
   return (
     <AppLayout>
@@ -69,13 +60,15 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
-        <StatCard title="Quantidade de Empréstimos" value={String(total)} />
         <StatCard
-          title="Total Emprestado"
-          value={formatCurrency(totalPrincipal)}
-          subtitle={
-            search ? `${principalSubtitle} · com o filtro atual` : principalSubtitle
-          }
+          title="Empréstimos Ativos"
+          value={String(activeCount)}
+          subtitle="Sem contar os quitados"
+        />
+        <StatCard
+          title="Capital Emprestado"
+          value={formatCurrency(activeCapital)}
+          subtitle="Capital em aberto agora"
         />
       </div>
 

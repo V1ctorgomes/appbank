@@ -50,10 +50,24 @@ export async function getSales(page?: string | number, search?: string) {
   const currentPage = Math.min(parsePage(page), totalPages);
   const skip = (currentPage - 1) * PAGE_SIZE;
 
-  const [valueAgg, items] = await Promise.all([
-    prisma.sale.aggregate({
-      where,
-      _sum: { totalValue: true },
+  const openInstallmentFilter = {
+    deletedAt: null as null,
+    status: { in: ["PENDING", "OVERDUE"] as ("PENDING" | "OVERDUE")[] },
+  };
+
+  const [openSalesCount, openValueAgg, items] = await Promise.all([
+    prisma.sale.count({
+      where: {
+        ...where,
+        installments: { some: openInstallmentFilter },
+      },
+    }),
+    prisma.installment.aggregate({
+      where: {
+        ...openInstallmentFilter,
+        sale: where,
+      },
+      _sum: { value: true },
     }),
     prisma.sale.findMany({
       where,
@@ -78,7 +92,8 @@ export async function getSales(page?: string | number, search?: string) {
   return {
     items,
     total,
-    totalValue: Number(valueAgg._sum.totalValue ?? 0),
+    openSalesCount,
+    openSalesValue: Number(openValueAgg._sum.value ?? 0),
     page: currentPage,
     totalPages,
   };
