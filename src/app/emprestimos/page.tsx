@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
+import { StatCard } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getLoans } from "@/actions/loans";
@@ -35,7 +36,7 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const search = params.search?.trim() || undefined;
   const status = parseLoanListStatus(params.status);
-  const { items: loans, total, page, totalPages } = await getLoans(
+  const { items: loans, total, totalPrincipal, page, totalPages } = await getLoans(
     params.page,
     search,
     status
@@ -43,6 +44,12 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
   const statusParam = status === "ativos" ? undefined : status;
   const clearSearchHref =
     status === "ativos" ? "/emprestimos" : `/emprestimos?status=${status}`;
+  const principalSubtitle =
+    status === "quitados"
+      ? "Capital dos quitados"
+      : status === "todos"
+        ? "Capital de todos os empréstimos"
+        : "Capital dos ativos";
 
   return (
     <AppLayout>
@@ -59,6 +66,17 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
             Novo Empréstimo
           </Button>
         </Link>
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        <StatCard title="Quantidade de Empréstimos" value={String(total)} />
+        <StatCard
+          title="Total Emprestado"
+          value={formatCurrency(totalPrincipal)}
+          subtitle={
+            search ? `${principalSubtitle} · com o filtro atual` : principalSubtitle
+          }
+        />
       </div>
 
       <div className="mb-4">

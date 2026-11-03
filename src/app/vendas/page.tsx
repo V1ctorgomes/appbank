@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
+import { StatCard } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
 import { SaleStatusBadge } from "@/components/ui/status-badge";
 import { getSales } from "@/actions/sales";
@@ -17,7 +18,10 @@ interface PageProps {
 export default async function VendasPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const search = params.search?.trim() || undefined;
-  const { items: sales, total, page, totalPages } = await getSales(params.page, search);
+  const { items: sales, total, totalValue, page, totalPages } = await getSales(
+    params.page,
+    search
+  );
 
   return (
     <AppLayout>
@@ -34,6 +38,15 @@ export default async function VendasPage({ searchParams }: PageProps) {
             Nova Venda
           </Button>
         </Link>
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        <StatCard title="Quantidade de Vendas" value={String(total)} />
+        <StatCard
+          title="Total de Vendas"
+          value={formatCurrency(totalValue)}
+          subtitle={search ? "Com o filtro atual" : "Valor total vendido"}
+        />
       </div>
 
       <ListSearch

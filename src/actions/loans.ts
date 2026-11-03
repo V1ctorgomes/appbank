@@ -177,36 +177,43 @@ export async function getLoans(
   const currentPage = Math.min(parsePage(page), totalPages);
   const skip = (currentPage - 1) * PAGE_SIZE;
 
-  const items = await prisma.loan.findMany({
-    where,
-    skip,
-    take: PAGE_SIZE,
-    select: {
-      id: true,
-      principal: true,
-      remainingBalance: true,
-      interestRate: true,
-      paymentFrequency: true,
-      paymentDay: true,
-      paymentDay2: true,
-      weekday: true,
-      activeWeekdays: true,
-      billingStartMonth: true,
-      billingStartDate: true,
-      totalDue: true,
-      installmentCount: true,
-      loanDate: true,
-      status: true,
-      client: { select: { id: true, name: true } },
-    },
-    orderBy: { loanDate: "desc" },
-  });
+  const [principalAgg, items] = await Promise.all([
+    prisma.loan.aggregate({
+      where,
+      _sum: { principal: true },
+    }),
+    prisma.loan.findMany({
+      where,
+      skip,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        principal: true,
+        remainingBalance: true,
+        interestRate: true,
+        paymentFrequency: true,
+        paymentDay: true,
+        paymentDay2: true,
+        weekday: true,
+        activeWeekdays: true,
+        billingStartMonth: true,
+        billingStartDate: true,
+        totalDue: true,
+        installmentCount: true,
+        loanDate: true,
+        status: true,
+        client: { select: { id: true, name: true } },
+      },
+      orderBy: { loanDate: "desc" },
+    }),
+  ]);
 
   return {
     items,
     total,
+    totalPrincipal: Number(principalAgg._sum.principal ?? 0),
     page: currentPage,
-    totalPages: getTotalPages(total),
+    totalPages,
   };
 }
 

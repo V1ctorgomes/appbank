@@ -121,6 +121,29 @@ export function calcLoanTotalDue(principal: number, interestRate: number): numbe
 }
 
 /**
+ * Capital ainda em aberto (sem juros embutidos).
+ * Em diária/semanal/quinzenal o remainingBalance começa no totalDue (capital+juros);
+ * aqui devolve a parcela proporcional do principal.
+ */
+export function remainingLoanCapital(input: {
+  principal: number | string;
+  remainingBalance: number | string;
+  totalDue?: number | string | null;
+}): number {
+  const principal = roundMoney(Number(input.principal));
+  const remaining = roundMoney(Number(input.remainingBalance));
+  const totalDue =
+    input.totalDue == null || input.totalDue === ""
+      ? null
+      : roundMoney(Number(input.totalDue));
+
+  if (totalDue && totalDue > 0 && principal > 0) {
+    return roundMoney((principal * remaining) / totalDue);
+  }
+  return remaining;
+}
+
+/**
  * Aloca o valor pago automaticamente (empréstimos mensais):
  * - exatamente o juros (ou até o juros) → só juros
  * - juros + parte do saldo → amortização parcial e novo saldo

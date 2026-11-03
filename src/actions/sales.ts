@@ -50,7 +50,12 @@ export async function getSales(page?: string | number, search?: string) {
   const currentPage = Math.min(parsePage(page), totalPages);
   const skip = (currentPage - 1) * PAGE_SIZE;
 
-  const items = await prisma.sale.findMany({
+  const [valueAgg, items] = await Promise.all([
+    prisma.sale.aggregate({
+      where,
+      _sum: { totalValue: true },
+    }),
+    prisma.sale.findMany({
       where,
       skip,
       take: PAGE_SIZE,
@@ -67,13 +72,15 @@ export async function getSales(page?: string | number, search?: string) {
         },
       },
       orderBy: { saleDate: "desc" },
-    });
+    }),
+  ]);
 
   return {
     items,
     total,
+    totalValue: Number(valueAgg._sum.totalValue ?? 0),
     page: currentPage,
-    totalPages: getTotalPages(total),
+    totalPages,
   };
 }
 

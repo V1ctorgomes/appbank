@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
 import { goalSchema, type GoalInput } from "@/lib/schemas";
+import { remainingLoanCapital } from "@/lib/loan-utils";
 import { GoalType } from "@prisma/client";
 
 export async function getGoals(filterType?: string) {
@@ -30,22 +31,17 @@ export async function getGoals(filterType?: string) {
   });
 
   // Cálculo dinâmico de dados em tempo real (Empréstimos, Streaks, etc.)
-  const [activeLoansCount, activeLoansSum, latestExpense] = await Promise.all([
-    prisma.loan.count({
+  const [activeLoans, latestExpense] = await Promise.all([
+    prisma.loan.findMany({
       where: {
         userId: user.id,
         status: "ACTIVE",
         deletedAt: null,
       },
-    }),
-    prisma.loan.aggregate({
-      where: {
-        userId: user.id,
-        status: "ACTIVE",
-        deletedAt: null,
-      },
-      _sum: {
+      select: {
+        principal: true,
         remainingBalance: true,
+        totalDue: true,
       },
     }),
     prisma.transaction.findFirst({
@@ -58,7 +54,18 @@ export async function getGoals(filterType?: string) {
     }),
   ]);
 
-  const totalLoansBalance = Number(activeLoansSum._sum.remainingBalance ?? 0);
+  const activeLoansCount = activeLoans.length;
+  // Usa só o capital emprestado (sem juros embutidos da diária/semanal/quinzenal).
+  const totalLoansBalance = activeLoans.reduce(
+    (sum, loan) =>
+      sum +
+      remainingLoanCapital({
+        principal: loan.principal,
+        remainingBalance: loan.remainingBalance,
+        totalDue: loan.totalDue,
+      }),
+    0
+  );
 
   // Busca todas as despesas recentes para cálculo por dias da semana
   const expenseTransactions = await prisma.transaction.findMany({
