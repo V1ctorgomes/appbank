@@ -108,6 +108,7 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
                 <tr className="text-left text-slate-500">
                   <th className="px-6 py-3 font-medium">Data</th>
                   <th className="px-6 py-3 font-medium">Cliente</th>
+                  <th className="px-6 py-3 font-medium">Observação</th>
                   <th className="px-6 py-3 font-medium">Principal</th>
                   <th className="px-6 py-3 font-medium">Saldo</th>
                   <th className="px-6 py-3 font-medium">Juros/mês</th>
@@ -133,6 +134,15 @@ export default async function EmprestimosPage({ searchParams }: PageProps) {
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-800">
                         {loan.client.name}
+                      </td>
+                      <td className="max-w-[14rem] px-6 py-4 text-slate-600">
+                        {loan.notes ? (
+                          <span className="line-clamp-2" title={loan.notes}>
+                            {loan.notes}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-slate-600">
                         {formatCurrency(Number(loan.principal))}

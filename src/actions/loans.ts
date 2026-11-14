@@ -212,6 +212,7 @@ export async function getLoans(
         totalDue: true,
         installmentCount: true,
         loanDate: true,
+        notes: true,
         status: true,
         client: { select: { id: true, name: true } },
       },

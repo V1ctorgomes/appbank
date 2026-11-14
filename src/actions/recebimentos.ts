@@ -22,6 +22,7 @@ export type PendingRecebimento = {
   dueDate: string;
   status: string;
   href: string;
+  notes?: string | null;
   saleId?: string;
   installmentNumber?: number;
   loan?: {
@@ -126,6 +127,7 @@ export async function getPendingRecebimentos(
         weekday: true,
         billingStartMonth: true,
         billingStartDate: true,
+        notes: true,
         client: { select: { id: true, name: true } },
         _count: {
           select: {
@@ -175,6 +177,7 @@ export async function getPendingRecebimentos(
         dueDate: due.toISOString(),
         status,
         href: `/emprestimos/${loan.id}`,
+        notes: loan.notes,
         loan: {
           remainingBalance: Number(loan.remainingBalance),
           interestRate: Number(loan.interestRate),
@@ -208,6 +211,7 @@ export async function getPendingRecebimentos(
         loanId: true,
         loan: {
           select: {
+            notes: true,
             client: { select: { id: true, name: true } },
           },
         },
@@ -226,6 +230,7 @@ export async function getPendingRecebimentos(
         dueDate: inst.dueDate.toISOString(),
         status: inst.status,
         href: `/emprestimos/${inst.loanId}`,
+        notes: inst.loan.notes,
         loanInstallment: {
           loanId: inst.loanId,
           number: inst.number,
@@ -308,7 +313,7 @@ export async function getHistoryRecebimentos(
         clientName: payment.loan.client.name,
         label: loanPaymentTypeLabel(payment.type),
         value: Number(payment.totalValue),
-        notes: payment.notes,
+        notes: payment.notes || payment.loan.notes,
         href: `/emprestimos/${payment.loanId}`,
       });
     }

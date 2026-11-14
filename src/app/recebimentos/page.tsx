@@ -75,6 +75,7 @@ export default async function RecebimentosPage({ searchParams }: PageProps) {
                   <th className="pb-3 font-medium">Tipo</th>
                   <th className="pb-3 font-medium">Cliente</th>
                   <th className="pb-3 font-medium">Referência</th>
+                  <th className="pb-3 font-medium">Observação</th>
                   <th className="pb-3 font-medium">Valor</th>
                   <th className="pb-3 font-medium">Vencimento</th>
                   <th className="pb-3 font-medium">Status</th>
@@ -110,6 +111,15 @@ export default async function RecebimentosPage({ searchParams }: PageProps) {
                       >
                         {item.label}
                       </Link>
+                    </td>
+                    <td className="max-w-[12rem] py-3 text-slate-500">
+                      {item.notes ? (
+                        <span className="line-clamp-2" title={item.notes}>
+                          {item.notes}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="py-3 font-medium text-slate-800">
                       {formatCurrency(item.value)}
