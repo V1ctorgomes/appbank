@@ -35,7 +35,7 @@ export default async function RelatoriosPage({ searchParams }: PageProps) {
         <ReportFilters defaultStart={defaultStart} defaultEnd={defaultEnd} />
       </Suspense>
 
-      <div className="my-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="my-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <StatCard
           title="Total de Entradas"
           value={formatCurrency(data.summary.income)}
@@ -52,6 +52,13 @@ export default async function RelatoriosPage({ searchParams }: PageProps) {
           variant={data.summary.balance >= 0 ? "income" : "expense"}
         />
         <StatCard
+          title="Total a Receber"
+          value={formatCurrency(data.totalReceivable)}
+        />
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
           title="A Receber (Vendas)"
           value={formatCurrency(data.totalSalesReceivable)}
         />
@@ -60,8 +67,36 @@ export default async function RelatoriosPage({ searchParams }: PageProps) {
           value={formatCurrency(data.totalLoansReceivable)}
         />
         <StatCard
-          title="Total a Receber"
-          value={formatCurrency(data.totalReceivable)}
+          title="A Receber (Aluguéis)"
+          value={formatCurrency(data.totalRentalsReceivable)}
+        />
+        <StatCard
+          title="Aluguéis ativos"
+          value={String(data.rentalMetrics.activeCount)}
+          subtitle={`${data.rentalMetrics.openCount} parcela(s) em aberto`}
+        />
+      </div>
+
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Recebido de aluguéis (período)"
+          value={formatCurrency(data.rentalMetrics.receivedInPeriod)}
+          variant="income"
+          subtitle={`${data.rentalMetrics.receivedCount} pagamento(s)`}
+        />
+        <StatCard
+          title="Carteira de aluguéis em aberto"
+          value={formatCurrency(data.rentalMetrics.openValue)}
+        />
+        <StatCard
+          title="Motos transferidas"
+          value={String(data.rentalMetrics.transferredCount)}
+          subtitle="Contratos quitados"
+        />
+        <StatCard
+          title="Motos devolvidas"
+          value={String(data.rentalMetrics.returnedCount)}
+          variant={data.rentalMetrics.returnedCount > 0 ? "warning" : "default"}
         />
       </div>
 
@@ -76,6 +111,7 @@ export default async function RelatoriosPage({ searchParams }: PageProps) {
                   <th className="pb-3 font-medium">Cliente</th>
                   <th className="pb-3 font-medium">Vendas</th>
                   <th className="pb-3 font-medium">Empréstimos</th>
+                  <th className="pb-3 font-medium">Aluguéis</th>
                   <th className="pb-3 font-medium">Total Pendente</th>
                   <th className="pb-3 font-medium">Itens</th>
                   <th className="pb-3 font-medium">Próximo Vencimento</th>
@@ -97,6 +133,9 @@ export default async function RelatoriosPage({ searchParams }: PageProps) {
                     </td>
                     <td className="py-3 text-slate-600">
                       {formatCurrency(item.loansPending)}
+                    </td>
+                    <td className="py-3 text-slate-600">
+                      {formatCurrency(item.rentalsPending)}
                     </td>
                     <td className="py-3 font-medium text-amber-700">
                       {formatCurrency(item.pendingValue)}

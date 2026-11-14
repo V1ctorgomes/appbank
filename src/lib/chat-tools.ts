@@ -512,6 +512,7 @@ export async function executeChatTool(
           total: money(i.pendingValue),
           vendas: money(i.salesPending),
           emprestimos: money(i.loansPending),
+          alugueis: money(i.rentalsPending),
           proxVenc: dateLabel(i.nextDue),
         })),
       };
