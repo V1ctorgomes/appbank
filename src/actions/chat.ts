@@ -16,7 +16,7 @@ Ajude o usuário a entender fluxos do app, interpretar saldos, juros, parcelas e
 Não invente dados do banco do usuário: você não tem acesso direto aos registros; peça contexto quando precisar.
 Não peça nem repita chaves de API ou senhas.`;
 
-const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+const DEFAULT_MODEL = "openai/gpt-oss-20b";
 
 export async function sendChatMessage(messages: ChatMessage[]) {
   await requireAuth();
