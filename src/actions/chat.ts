@@ -1,7 +1,11 @@
 "use server";
 
 import { requireAuth } from "@/lib/auth-utils";
-import { chatToolDefinitions, executeChatTool } from "@/lib/chat-tools";
+import {
+  buildChatSnapshot,
+  chatToolDefinitions,
+  executeChatTool,
+} from "@/lib/chat-tools";
 
 export type ChatRole = "user" | "assistant" | "system";
 
@@ -11,7 +15,11 @@ export type ChatMessage = {
 };
 
 type GroqMessage =
-  | { role: "system" | "user" | "assistant"; content: string | null; tool_calls?: GroqToolCall[] }
+  | {
+      role: "system" | "user" | "assistant";
+      content: string | null;
+      tool_calls?: GroqToolCall[];
+    }
   | { role: "tool"; tool_call_id: string; name?: string; content: string };
 
 type GroqToolCall = {
@@ -26,18 +34,28 @@ type GroqChoiceMessage = {
   tool_calls?: GroqToolCall[];
 };
 
-const SYSTEM_PROMPT = `Você é o assistente do AppBank, sistema de gestão financeira pessoal (clientes, vendas, empréstimos, recebimentos, movimentações, metas, rotina e relatórios).
-
-Você TEM acesso aos dados reais do usuário autenticado por meio de ferramentas.
-Sempre que a pergunta envolver números, saldos, clientes, empréstimos, vendas, recebimentos, atrasados, metas ou movimentações, use as ferramentas antes de responder.
-Não invente valores: use apenas o que as ferramentas retornarem.
-Responda em português do Brasil, de forma clara e objetiva, com valores formatados.
-Se faltar um nome ou filtro, pergunte ou busque com a ferramenta de pesquisa.
-Não peça nem repita chaves de API ou senhas.
-Não execute alterações (criar/editar/excluir/pagar): apenas consulta e orientação.`;
-
 const DEFAULT_MODEL = "openai/gpt-oss-20b";
-const MAX_TOOL_ROUNDS = 6;
+const MAX_TOOL_ROUNDS = 3;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseRetrySeconds(message: string) {
+  const match = message.match(/try again in ([0-9.]+)s/i);
+  if (!match) return 4;
+  return Math.min(Math.ceil(Number(match[1]) + 0.5), 20);
+}
+
+function isRateLimitError(message: string) {
+  return /rate limit|tokens per minute|tpm/i.test(message);
+}
+
+function truncateJson(value: unknown, max = 5000) {
+  const text = JSON.stringify(value);
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}…[truncado]`;
+}
 
 async function callGroq(
   apiKey: string,
@@ -45,44 +63,59 @@ async function callGroq(
   messages: GroqMessage[],
   withTools: boolean
 ) {
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.3,
-      messages,
-      ...(withTools
-        ? {
-            tools: chatToolDefinitions,
-            tool_choice: "auto",
-          }
-        : {}),
-    }),
-  });
+  let lastError = "Erro na API Groq.";
 
-  const data = (await response.json()) as {
-    error?: { message?: string };
-    choices?: { message?: GroqChoiceMessage; finish_reason?: string }[];
-  };
-
-  if (!response.ok) {
-    throw new Error(
-      data.error?.message ??
-        `Erro na API Groq (${response.status}). Verifique a chave e o modelo.`
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          max_tokens: 1200,
+          messages,
+          ...(withTools
+            ? {
+                tools: chatToolDefinitions,
+                tool_choice: "auto",
+              }
+            : {}),
+        }),
+      }
     );
+
+    const data = (await response.json()) as {
+      error?: { message?: string };
+      choices?: { message?: GroqChoiceMessage }[];
+    };
+
+    if (response.ok) {
+      return data.choices?.[0]?.message;
+    }
+
+    lastError =
+      data.error?.message ??
+      `Erro na API Groq (${response.status}). Verifique a chave e o modelo.`;
+
+    if (response.status === 429 || isRateLimitError(lastError)) {
+      if (attempt < 2) {
+        await sleep(parseRetrySeconds(lastError) * 1000);
+        continue;
+      }
+      throw new Error(
+        "A Groq atingiu o limite gratuito de tokens por minuto. Espere ~10s e tente de novo, ou faça upgrade em console.groq.com/settings/billing."
+      );
+    }
+
+    throw new Error(lastError);
   }
 
-  return data.choices?.[0]?.message;
-}
-
-function truncateJson(value: unknown, max = 12000) {
-  const text = JSON.stringify(value);
-  if (text.length <= max) return text;
-  return `${text.slice(0, max)}…[truncado]`;
+  throw new Error(lastError);
 }
 
 export async function sendChatMessage(messages: ChatMessage[]) {
@@ -103,10 +136,10 @@ export async function sendChatMessage(messages: ChatMessage[]) {
         typeof m.content === "string" &&
         m.content.trim().length > 0
     )
-    .slice(-16)
+    .slice(-8)
     .map((m) => ({
       role: m.role as "user" | "assistant",
-      content: m.content.trim().slice(0, 4000),
+      content: m.content.trim().slice(0, 1500),
     }));
 
   if (cleaned.length === 0) {
@@ -117,9 +150,22 @@ export async function sendChatMessage(messages: ChatMessage[]) {
     return { error: "A última mensagem precisa ser do usuário." };
   }
 
+  let snapshotText = "";
+  try {
+    const snapshot = await buildChatSnapshot(user.id);
+    snapshotText = truncateJson(snapshot, 2500);
+  } catch {
+    snapshotText = '{"erro":"falha ao carregar resumo"}';
+  }
+
+  const systemPrompt = `Assistente do AppBank. Responda em pt-BR com dados reais.
+Snapshot atual do usuário (use primeiro; só chame query_app se faltar detalhe):
+${snapshotText}
+Regras: não invente números; não peça senhas; só consulta (sem criar/editar/pagar).`;
+
   const model = process.env.GROQ_MODEL?.trim() || DEFAULT_MODEL;
   const conversation: GroqMessage[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: systemPrompt },
     ...cleaned,
   ];
 
@@ -145,7 +191,8 @@ export async function sendChatMessage(messages: ChatMessage[]) {
         tool_calls: toolCalls,
       });
 
-      for (const call of toolCalls) {
+      // gpt-oss-20b não garante parallel tools — executa em sequência, no máx. 2 por rodada
+      for (const call of toolCalls.slice(0, 2)) {
         const result = await executeChatTool(
           user.id,
           call.function.name,
@@ -155,23 +202,23 @@ export async function sendChatMessage(messages: ChatMessage[]) {
           role: "tool",
           tool_call_id: call.id,
           name: call.function.name,
-          content: truncateJson(result),
+          content: truncateJson(result, 4000),
         });
       }
     }
 
-    // Última tentativa sem tools para fechar a resposta
     const finalMessage = await callGroq(apiKey, model, conversation, false);
     const content = finalMessage?.content?.trim();
     if (!content) {
       return {
         error:
-          "Consultei os dados, mas não consegui montar a resposta final. Tente de novo com um pedido mais específico.",
+          "Consultei os dados, mas não consegui montar a resposta. Tente de novo em alguns segundos.",
       };
     }
     return { success: true as const, message: content };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Falha ao conectar na API da Groq.";
+    const msg =
+      err instanceof Error ? err.message : "Falha ao conectar na API da Groq.";
     return { error: msg };
   }
 }

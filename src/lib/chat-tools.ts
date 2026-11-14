@@ -9,7 +9,6 @@ import {
 import { getPendingRecebimentos, getHistoryRecebimentos } from "@/actions/recebimentos";
 import { getAccountsReceivable } from "@/actions/reports";
 import { getGoalsSummary } from "@/actions/goals";
-import { getRoutineWeeklySummary } from "@/actions/routines";
 import {
   calcMonthlyInterest,
   isInstallmentFrequency,
@@ -33,197 +32,119 @@ function monthKey(value?: string) {
   return format(new Date(), "yyyy-MM");
 }
 
-export const chatToolDefinitions = [
-  {
-    type: "function" as const,
-    function: {
-      name: "get_overview",
-      description:
-        "Resumo geral do AppBank: saldo, entradas/saídas do mês, vendas, empréstimos ativos, atrasados e metas.",
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "search_clients",
-      description: "Busca clientes por nome, telefone, CPF ou observação.",
-      parameters: {
-        type: "object",
-        properties: {
-          search: {
-            type: "string",
-            description: "Trecho do nome, telefone ou CPF",
-          },
-          limit: { type: "number", description: "Máximo de resultados (padrão 20)" },
-        },
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "get_client_details",
-      description:
-        "Detalhes de um cliente: contato, vendas, empréstimos e valores em aberto.",
-      parameters: {
-        type: "object",
-        properties: {
-          clientId: { type: "string", description: "ID do cliente" },
-          clientName: {
-            type: "string",
-            description: "Nome (ou parte) se não souber o ID",
-          },
-        },
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "list_loans",
-      description: "Lista empréstimos (ativos, quitados ou todos), com opção de busca.",
-      parameters: {
-        type: "object",
-        properties: {
-          status: {
-            type: "string",
-            enum: ["ativos", "quitados", "todos"],
-            description: "Filtro de status (padrão ativos)",
-          },
-          search: { type: "string", description: "Cliente, CPF, telefone ou observação" },
-          limit: { type: "number" },
-        },
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "get_loan_details",
-      description:
-        "Detalhe de um empréstimo: saldo, juros, parcelas, pagamentos e observação.",
-      parameters: {
-        type: "object",
-        properties: {
-          loanId: { type: "string" },
-          clientName: {
-            type: "string",
-            description: "Busca o empréstimo ativo mais recente desse cliente",
-          },
-        },
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "list_sales",
-      description: "Lista vendas recentes, com busca opcional por cliente.",
-      parameters: {
-        type: "object",
-        properties: {
-          search: { type: "string" },
-          limit: { type: "number" },
-        },
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "get_receivables",
-      description:
-        "Recebimentos do mês: a receber e já recebidos (vendas e/ou empréstimos).",
-      parameters: {
-        type: "object",
-        properties: {
-          month: {
-            type: "string",
-            description: "Mês no formato yyyy-MM (padrão mês atual)",
-          },
-          tipo: {
-            type: "string",
-            enum: ["todos", "vendas", "emprestimos"],
-            description: "Filtro de tipo (padrão todos)",
-          },
-        },
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "get_accounts_receivable",
-      description: "Contas a receber agrupadas por cliente (vendas + empréstimos).",
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "list_transactions",
-      description: "Movimentações (entradas/saídas) recentes.",
-      parameters: {
-        type: "object",
-        properties: {
-          type: {
-            type: "string",
-            enum: ["INCOME", "EXPENSE", "ALL"],
-            description: "Tipo de lançamento",
-          },
-          limit: { type: "number" },
-        },
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "get_goals_and_routine",
-      description: "Resumo de metas e rotina/hábitos da semana.",
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-    },
-  },
-];
-
-type ToolArgs = Record<string, unknown>;
-
 function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function asLimit(value: unknown, fallback = 20, max = 50) {
+function asLimit(value: unknown, fallback = 15, max = 25) {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n) || n <= 0) return fallback;
   return Math.min(Math.floor(n), max);
 }
 
+type ToolArgs = Record<string, unknown>;
+
+/** Poucas tools = bem menos tokens por request na Groq. */
+export const chatToolDefinitions = [
+  {
+    type: "function" as const,
+    function: {
+      name: "query_app",
+      description:
+        "Consulta dados do AppBank. Use resource: overview, clients, client, loans, loan, sales, receivables, debts, transactions, goals.",
+      parameters: {
+        type: "object",
+        properties: {
+          resource: {
+            type: "string",
+            enum: [
+              "overview",
+              "clients",
+              "client",
+              "loans",
+              "loan",
+              "sales",
+              "receivables",
+              "debts",
+              "transactions",
+              "goals",
+            ],
+          },
+          search: { type: "string", description: "Nome, CPF, telefone ou observação" },
+          id: { type: "string", description: "ID do cliente ou empréstimo" },
+          status: {
+            type: "string",
+            enum: ["ativos", "quitados", "todos"],
+          },
+          month: { type: "string", description: "yyyy-MM" },
+          tipo: {
+            type: "string",
+            enum: ["todos", "vendas", "emprestimos"],
+          },
+          limit: { type: "number" },
+        },
+        required: ["resource"],
+        additionalProperties: false,
+      },
+    },
+  },
+];
+
+export async function buildChatSnapshot(userId: string) {
+  const month = monthKey();
+  const [general, sales, loans, pending] = await Promise.all([
+    getDashboardData(),
+    getDashboardSaleData(),
+    getDashboardLoanData(),
+    getPendingRecebimentos(month, "todos"),
+  ]);
+
+  const topPending = pending.items.slice(0, 8).map((i) => ({
+    cliente: i.clientName,
+    ref: i.label,
+    valor: money(i.value),
+    venc: dateLabel(i.dueDate),
+    status: i.status,
+    obs: i.notes ?? undefined,
+  }));
+
+  return {
+    mes: month,
+    saldo: money(general.balance),
+    entradasMes: money(general.monthIncome),
+    saidasMes: money(general.monthExpense),
+    aReceberMes: money(general.totalReceivable),
+    atrasadosVendas: general.overdueCount,
+    emprestimosAtivos: loans.activeCount,
+    carteira: money(loans.portfolio),
+    recebidoEmprestimosMes: money(loans.monthReceived),
+    aReceberEmprestimosMes: money(loans.monthReceivable),
+    atrasadosEmprestimos: loans.overdueCount,
+    aReceberVendasMes: money(sales.monthReceivable),
+    pendenciasMesQtd: pending.items.length,
+    pendenciasMesTotal: money(pending.totalValue),
+    topPendencias: topPending,
+    userIdHint: userId.slice(0, 6),
+  };
+}
+
 async function findClientId(userId: string, args: ToolArgs) {
-  const clientId = asString(args.clientId);
-  if (clientId) {
+  const id = asString(args.id);
+  if (id) {
     const found = await prisma.client.findFirst({
-      where: { id: clientId, userId, deletedAt: null },
+      where: { id, userId, deletedAt: null },
       select: { id: true },
     });
-    return found?.id ?? null;
+    if (found) return found.id;
   }
 
-  const name = asString(args.clientName);
-  if (!name) return null;
-
+  const search = asString(args.search);
+  if (!search) return null;
   const match = await prisma.client.findFirst({
     where: {
       userId,
       deletedAt: null,
-      name: { contains: name, mode: "insensitive" },
+      name: { contains: search, mode: "insensitive" },
     },
     select: { id: true },
     orderBy: { name: "asc" },
@@ -240,43 +161,22 @@ export async function executeChatTool(
   try {
     args = rawArgs ? (JSON.parse(rawArgs) as ToolArgs) : {};
   } catch {
-    return { error: "Argumentos inválidos da ferramenta." };
+    return { error: "Argumentos inválidos." };
   }
 
-  switch (name) {
-    case "get_overview": {
-      const [general, sales, loans, goals] = await Promise.all([
-        getDashboardData(),
-        getDashboardSaleData(),
-        getDashboardLoanData(),
-        getGoalsSummary(),
-      ]);
-      return {
-        geral: {
-          saldoAtual: money(general.balance),
-          entradasMes: money(general.monthIncome),
-          saidasMes: money(general.monthExpense),
-          aReceberMes: money(general.totalReceivable),
-          parcelasAtrasadas: general.overdueCount,
-        },
-        vendas: {
-          aReceberMes: money(sales.monthReceivable),
-          atrasadas: sales.overdueCount,
-        },
-        emprestimos: {
-          ativos: loans.activeCount,
-          carteiraAberta: money(loans.portfolio),
-          recebidoMes: money(loans.monthReceived),
-          aReceberMes: money(loans.monthReceivable),
-          atrasados: loans.overdueCount,
-        },
-        metas: goals,
-      };
-    }
+  if (name !== "query_app") {
+    return { error: `Ferramenta desconhecida: ${name}` };
+  }
 
-    case "search_clients": {
-      const search = asString(args.search);
-      const limit = asLimit(args.limit, 20);
+  const resource = asString(args.resource);
+  const search = asString(args.search);
+  const limit = asLimit(args.limit);
+
+  switch (resource) {
+    case "overview":
+      return buildChatSnapshot(userId);
+
+    case "clients": {
       const digits = search.replace(/\D/g, "");
       const clients = await prisma.client.findMany({
         where: {
@@ -288,10 +188,7 @@ export async function executeChatTool(
                   { name: { contains: search, mode: "insensitive" } },
                   { notes: { contains: search, mode: "insensitive" } },
                   ...(digits
-                    ? [
-                        { cpf: { contains: digits } },
-                        { phone: { contains: digits } },
-                      ]
+                    ? [{ cpf: { contains: digits } }, { phone: { contains: digits } }]
                     : []),
                 ],
               }
@@ -299,32 +196,24 @@ export async function executeChatTool(
         },
         take: limit,
         orderBy: { name: "asc" },
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          cpf: true,
-          notes: true,
-        },
+        select: { id: true, name: true, phone: true, cpf: true, notes: true },
       });
       return {
-        total: clients.length,
         clientes: clients.map((c) => ({
           id: c.id,
           nome: c.name,
           telefone: c.phone,
           cpf: c.cpf,
-          observacao: c.notes,
+          obs: c.notes,
         })),
       };
     }
 
-    case "get_client_details": {
-      const id = await findClientId(userId, args);
-      if (!id) return { error: "Cliente não encontrado." };
-
+    case "client": {
+      const clientId = await findClientId(userId, args);
+      if (!clientId) return { error: "Cliente não encontrado." };
       const client = await prisma.client.findFirst({
-        where: { id, userId, deletedAt: null },
+        where: { id: clientId, userId, deletedAt: null },
         select: {
           id: true,
           name: true,
@@ -334,22 +223,21 @@ export async function executeChatTool(
           sales: {
             where: { deletedAt: null },
             orderBy: { saleDate: "desc" },
-            take: 15,
+            take: 10,
             select: {
               id: true,
               saleDate: true,
               totalValue: true,
-              type: true,
               installments: {
                 where: { deletedAt: null, status: { in: ["PENDING", "OVERDUE"] } },
-                select: { value: true, dueDate: true, status: true, number: true },
+                select: { number: true, value: true, dueDate: true, status: true },
               },
             },
           },
           loans: {
             where: { deletedAt: null },
             orderBy: { loanDate: "desc" },
-            take: 15,
+            take: 10,
             select: {
               id: true,
               loanDate: true,
@@ -366,8 +254,7 @@ export async function executeChatTool(
       if (!client) return { error: "Cliente não encontrado." };
 
       const vendasAbertas = client.sales.reduce(
-        (sum, sale) =>
-          sum + sale.installments.reduce((s, i) => s + Number(i.value), 0),
+        (sum, s) => sum + s.installments.reduce((a, i) => a + Number(i.value), 0),
         0
       );
       const emprestimosAbertos = client.loans
@@ -379,21 +266,20 @@ export async function executeChatTool(
         nome: client.name,
         telefone: client.phone,
         cpf: client.cpf,
-        observacao: client.notes,
-        totaisEmAberto: {
+        obs: client.notes,
+        aberto: {
           vendas: money(vendasAbertas),
           emprestimos: money(emprestimosAbertos),
-          geral: money(vendasAbertas + emprestimosAbertos),
+          total: money(vendasAbertas + emprestimosAbertos),
         },
         vendas: client.sales.map((s) => ({
           id: s.id,
           data: dateLabel(s.saleDate),
           total: money(Number(s.totalValue)),
-          tipo: s.type,
-          parcelasEmAberto: s.installments.map((i) => ({
-            numero: i.number,
+          parcelasAbertas: s.installments.map((i) => ({
+            n: i.number,
             valor: money(Number(i.value)),
-            vencimento: dateLabel(i.dueDate),
+            venc: dateLabel(i.dueDate),
             status: i.status,
           })),
         })),
@@ -403,19 +289,16 @@ export async function executeChatTool(
           principal: money(Number(l.principal)),
           saldo: money(Number(l.remainingBalance)),
           juros: `${Number(l.interestRate)}%`,
-          frequencia: loanFrequencyLabel(l.paymentFrequency),
+          freq: loanFrequencyLabel(l.paymentFrequency),
           status: l.status,
-          observacao: l.notes,
+          obs: l.notes,
         })),
       };
     }
 
-    case "list_loans": {
+    case "loans": {
       const status = asString(args.status) || "ativos";
-      const search = asString(args.search);
-      const limit = asLimit(args.limit, 25);
       const digits = search.replace(/\D/g, "");
-
       const loans = await prisma.loan.findMany({
         where: {
           userId,
@@ -452,74 +335,69 @@ export async function executeChatTool(
           paymentFrequency: true,
           status: true,
           notes: true,
-          client: { select: { id: true, name: true } },
+          client: { select: { name: true } },
         },
       });
 
       return {
-        filtro: status,
-        total: loans.length,
         emprestimos: loans.map((loan) => {
           const balance = Number(loan.remainingBalance);
           const rate = Number(loan.interestRate);
-          const interestBase = isInstallmentFrequency(loan.paymentFrequency)
+          const base = isInstallmentFrequency(loan.paymentFrequency)
             ? Number(loan.principal)
             : balance;
           return {
             id: loan.id,
             cliente: loan.client.name,
-            clienteId: loan.client.id,
             data: dateLabel(loan.loanDate),
             principal: money(Number(loan.principal)),
             saldo: money(balance),
-            capitalRestante: money(
+            capital: money(
               remainingLoanCapital({
                 principal: loan.principal,
                 remainingBalance: loan.remainingBalance,
                 totalDue: loan.totalDue,
               })
             ),
-            jurosMes: `${rate}% (${money(calcMonthlyInterest(interestBase, rate))})`,
-            frequencia: loanFrequencyLabel(loan.paymentFrequency),
+            jurosMes: money(calcMonthlyInterest(base, rate)),
+            freq: loanFrequencyLabel(loan.paymentFrequency),
             status: loan.status,
-            observacao: loan.notes,
+            obs: loan.notes,
           };
         }),
       };
     }
 
-    case "get_loan_details": {
-      let loanId = asString(args.loanId);
-      if (!loanId) {
-        const clientName = asString(args.clientName);
-        if (clientName) {
-          const found = await prisma.loan.findFirst({
-            where: {
-              userId,
-              deletedAt: null,
-              status: "ACTIVE",
-              client: { name: { contains: clientName, mode: "insensitive" } },
-            },
-            orderBy: { loanDate: "desc" },
-            select: { id: true },
-          });
-          loanId = found?.id ?? "";
-        }
+    case "loan": {
+      let loanId = asString(args.id);
+      if (!loanId && search) {
+        const found = await prisma.loan.findFirst({
+          where: {
+            userId,
+            deletedAt: null,
+            status: "ACTIVE",
+            client: { name: { contains: search, mode: "insensitive" } },
+          },
+          orderBy: { loanDate: "desc" },
+          select: { id: true },
+        });
+        loanId = found?.id ?? "";
       }
       if (!loanId) return { error: "Empréstimo não encontrado." };
 
       const loan = await prisma.loan.findFirst({
         where: { id: loanId, userId, deletedAt: null },
         include: {
-          client: { select: { id: true, name: true, phone: true } },
+          client: { select: { name: true, phone: true } },
           installments: {
             where: { deletedAt: null },
             orderBy: { number: "asc" },
+            take: 40,
           },
           payments: {
             where: { deletedAt: null },
             orderBy: [{ paymentDate: "desc" }, { createdAt: "desc" }],
-            take: 30,
+            take: 15,
           },
         },
       });
@@ -527,7 +405,6 @@ export async function executeChatTool(
 
       const balance = Number(loan.remainingBalance);
       const rate = Number(loan.interestRate);
-
       return {
         id: loan.id,
         cliente: loan.client.name,
@@ -536,32 +413,26 @@ export async function executeChatTool(
         principal: money(Number(loan.principal)),
         saldo: money(balance),
         juros: `${rate}%`,
-        jurosDoMes: money(calcMonthlyInterest(balance, rate)),
-        frequencia: loanFrequencyLabel(loan.paymentFrequency),
+        jurosMes: money(calcMonthlyInterest(balance, rate)),
+        freq: loanFrequencyLabel(loan.paymentFrequency),
         status: loan.status,
-        observacao: loan.notes,
-        totalCiclo: loan.totalDue != null ? money(Number(loan.totalDue)) : null,
+        obs: loan.notes,
         parcelas: loan.installments.map((i) => ({
-          numero: i.number,
+          n: i.number,
           valor: money(Number(i.value)),
-          vencimento: dateLabel(i.dueDate),
+          venc: dateLabel(i.dueDate),
           status: i.status,
-          pagoEm: dateLabel(i.paidAt),
         })),
         pagamentos: loan.payments.map((p) => ({
           data: dateLabel(p.paymentDate),
           tipo: p.type,
           valor: money(Number(p.totalValue)),
-          juros: money(Number(p.interestValue)),
-          amortizacao: money(Number(p.principalValue)),
-          observacao: p.notes,
+          obs: p.notes,
         })),
       };
     }
 
-    case "list_sales": {
-      const search = asString(args.search);
-      const limit = asLimit(args.limit, 20);
+    case "sales": {
       const sales = await prisma.sale.findMany({
         where: {
           userId,
@@ -581,7 +452,6 @@ export async function executeChatTool(
           id: true,
           saleDate: true,
           totalValue: true,
-          type: true,
           description: true,
           client: { select: { name: true } },
           installments: {
@@ -590,24 +460,19 @@ export async function executeChatTool(
           },
         },
       });
-
       return {
-        total: sales.length,
         vendas: sales.map((s) => ({
           id: s.id,
           cliente: s.client.name,
           data: dateLabel(s.saleDate),
           total: money(Number(s.totalValue)),
-          tipo: s.type,
-          descricao: s.description,
-          emAberto: money(
-            s.installments.reduce((sum, i) => sum + Number(i.value), 0)
-          ),
+          aberto: money(s.installments.reduce((a, i) => a + Number(i.value), 0)),
+          desc: s.description,
         })),
       };
     }
 
-    case "get_receivables": {
+    case "receivables": {
       const month = monthKey(asString(args.month) || undefined);
       const tipoRaw = asString(args.tipo) || "todos";
       const tipo =
@@ -618,94 +483,80 @@ export async function executeChatTool(
       ]);
       return {
         mes: month,
-        tipo,
-        aReceber: {
-          quantidade: pending.items.length,
-          total: money(pending.totalValue),
-          itens: pending.items.slice(0, 40).map((i) => ({
-            tipo: i.kind,
-            cliente: i.clientName,
-            referencia: i.label,
-            valor: money(i.value),
-            vencimento: dateLabel(i.dueDate),
-            status: i.status,
-            observacao: i.notes ?? null,
-          })),
-        },
-        recebidos: {
-          quantidade: history.items.length,
-          total: money(history.totalValue),
-          itens: history.items.slice(0, 40).map((i) => ({
-            tipo: i.kind,
-            cliente: i.clientName,
-            referencia: i.label,
-            valor: money(i.value),
-            data: dateLabel(i.paymentDate),
-            observacao: i.notes,
-          })),
-        },
-      };
-    }
-
-    case "get_accounts_receivable": {
-      const items = await getAccountsReceivable();
-      return {
-        totalClientes: items.length,
-        totalGeral: money(items.reduce((sum, i) => sum + i.pendingValue, 0)),
-        clientes: items.slice(0, 40).map((i) => ({
+        aReceberTotal: money(pending.totalValue),
+        aReceber: pending.items.slice(0, 20).map((i) => ({
           cliente: i.clientName,
-          total: money(i.pendingValue),
-          vendas: money(i.salesPending),
-          emprestimos: money(i.loansPending),
-          itensPendentes: i.pendingCount,
-          proximoVencimento: dateLabel(i.nextDue),
+          ref: i.label,
+          valor: money(i.value),
+          venc: dateLabel(i.dueDate),
+          status: i.status,
+          obs: i.notes ?? undefined,
+        })),
+        recebidosTotal: money(history.totalValue),
+        recebidos: history.items.slice(0, 15).map((i) => ({
+          cliente: i.clientName,
+          ref: i.label,
+          valor: money(i.value),
+          data: dateLabel(i.paymentDate),
+          obs: i.notes ?? undefined,
         })),
       };
     }
 
-    case "list_transactions": {
-      const type = asString(args.type) || "ALL";
-      const limit = asLimit(args.limit, 25);
+    case "debts": {
+      const items = await getAccountsReceivable();
+      return {
+        total: money(items.reduce((s, i) => s + i.pendingValue, 0)),
+        clientes: items.slice(0, 20).map((i) => ({
+          cliente: i.clientName,
+          total: money(i.pendingValue),
+          vendas: money(i.salesPending),
+          emprestimos: money(i.loansPending),
+          proxVenc: dateLabel(i.nextDue),
+        })),
+      };
+    }
+
+    case "transactions": {
       const txs = await prisma.transaction.findMany({
-        where: {
-          userId,
-          deletedAt: null,
-          ...(type === "INCOME" || type === "EXPENSE" ? { type } : {}),
-        },
+        where: { userId, deletedAt: null },
         take: limit,
         orderBy: [{ date: "desc" }, { createdAt: "desc" }],
         select: {
-          id: true,
           date: true,
           type: true,
-          origin: true,
           description: true,
           value: true,
           notes: true,
         },
       });
       return {
-        total: txs.length,
         movimentacoes: txs.map((t) => ({
           data: dateLabel(t.date),
           tipo: t.type === "INCOME" ? "Entrada" : "Saída",
-          origem: t.origin,
-          descricao: t.description,
+          desc: t.description,
           valor: money(Number(t.value)),
-          observacao: t.notes,
+          obs: t.notes,
         })),
       };
     }
 
-    case "get_goals_and_routine": {
-      const [goals, routine] = await Promise.all([
-        getGoalsSummary(),
-        getRoutineWeeklySummary(),
-      ]);
-      return { metas: goals, rotina: routine };
+    case "goals": {
+      const goals = await getGoalsSummary();
+      return {
+        total: goals.total,
+        concluidas: goals.completed,
+        emAndamento: goals.inProgress,
+        progressoMedio: `${goals.averageProgress}%`,
+        recentes: goals.recentGoals.slice(0, 5).map((g) => ({
+          titulo: g.title,
+          tipo: g.type,
+          concluida: g.isCompleted,
+        })),
+      };
     }
 
     default:
-      return { error: `Ferramenta desconhecida: ${name}` };
+      return { error: `resource inválido: ${resource}` };
   }
 }
