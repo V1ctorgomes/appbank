@@ -102,7 +102,7 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-slate-900 p-4 transition-transform lg:static lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col overflow-y-auto bg-slate-900 p-4 transition-transform lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -115,6 +115,9 @@ export function Sidebar() {
         </button>
         <NavContent />
       </aside>
+
+      {/* Espaço reservado no fluxo para o aside fixo no desktop */}
+      <div className="hidden w-64 shrink-0 lg:block" aria-hidden />
     </>
   );
 }
