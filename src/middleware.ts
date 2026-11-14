@@ -11,7 +11,10 @@ export const config = {
     "/emprestimos/:path*",
     "/recebimentos/:path*",
     "/movimentacoes/:path*",
+    "/metas/:path*",
+    "/rotina/:path*",
     "/relatorios/:path*",
+    "/chat/:path*",
     "/configuracoes/:path*",
   ],
 };

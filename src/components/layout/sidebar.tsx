@@ -13,6 +13,7 @@ import {
   Target,
   Calendar,
   Settings,
+  MessageSquare,
   LogOut,
   Menu,
   X,
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/metas", label: "Metas", icon: Target },
   { href: "/rotina", label: "Rotina", icon: Calendar },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
+  { href: "/chat", label: "Chat IA", icon: MessageSquare },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
