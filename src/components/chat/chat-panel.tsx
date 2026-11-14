@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils";
 import { Loader2, Send, Sparkles } from "lucide-react";
 
 const SUGGESTIONS = [
-  "Como funciona a cobrança diária sem domingo?",
-  "Diferença entre empréstimo mensal e por parcelas?",
-  "Como editar um empréstimo que já recebi algo?",
+  "Quanto tenho a receber este mês?",
+  "Liste meus empréstimos ativos",
+  "Quem está com atraso agora?",
 ];
 
 export function ChatPanel() {
@@ -80,8 +80,8 @@ export function ChatPanel() {
                 Assistente AppBank
               </p>
               <p className="mt-1 max-w-md text-sm text-slate-500">
-                Pergunte sobre empréstimos, recebimentos, juros e fluxos do app.
-                Respostas via Groq.
+                Pergunte pelos seus dados reais: clientes, empréstimos, vendas,
+                recebimentos e saldos. Respostas via Groq.
               </p>
             </div>
             <div className="flex flex-wrap justify-center gap-2">
