@@ -382,3 +382,89 @@ export const adHocLogSchema = z.object({
 
 export type AdHocLogInput = z.infer<typeof adHocLogSchema>;
 
+export const createRentalSchema = z
+  .object({
+    clientId: z.string().min(1, "Cliente é obrigatório"),
+    vehicleDescription: z.string().min(1, "Descreva a moto/veículo"),
+    plate: z.string().optional(),
+    paymentFrequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"]),
+    installmentCount: z.coerce
+      .number()
+      .int()
+      .min(1, "Informe pelo menos 1 parcela")
+      .max(365, "Máximo de 365 parcelas"),
+    installmentValue: z.coerce
+      .number()
+      .positive("Valor da parcela deve ser maior que zero"),
+    startDate: z.string().min(1, "Data de início é obrigatória"),
+    paymentDay: z.coerce.number().int().min(1).max(31).optional(),
+    paymentDay2: z.coerce.number().int().min(1).max(31).optional(),
+    weekday: z.coerce.number().int().min(0).max(6).optional(),
+    activeWeekdays: z.array(z.coerce.number().int().min(0).max(6)).optional(),
+    notes: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.paymentFrequency === "WEEKLY" && data.weekday == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Escolha o dia da semana",
+        path: ["weekday"],
+      });
+    }
+    if (data.paymentFrequency === "DAILY") {
+      if (!data.activeWeekdays || data.activeWeekdays.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Selecione pelo menos um dia da semana",
+          path: ["activeWeekdays"],
+        });
+      }
+    }
+    if (data.paymentFrequency === "MONTHLY" && data.paymentDay == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Informe o dia do pagamento",
+        path: ["paymentDay"],
+      });
+    }
+    if (data.paymentFrequency === "BIWEEKLY") {
+      if (data.paymentDay == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe o primeiro dia",
+          path: ["paymentDay"],
+        });
+      }
+      if (data.paymentDay2 == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe o segundo dia",
+          path: ["paymentDay2"],
+        });
+      }
+      if (
+        data.paymentDay != null &&
+        data.paymentDay2 != null &&
+        data.paymentDay === data.paymentDay2
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Os dois dias devem ser diferentes",
+          path: ["paymentDay2"],
+        });
+      }
+    }
+  });
+
+export type CreateRentalInput = z.infer<typeof createRentalSchema>;
+
+export const rentalInstallmentPaymentSchema = z.object({
+  rentalInstallmentId: z.string().min(1),
+  paymentDate: z.string().min(1, "Data do pagamento é obrigatória"),
+  notes: z.string().optional(),
+});
+
+export type RentalInstallmentPaymentInput = z.infer<
+  typeof rentalInstallmentPaymentSchema
+>;
+

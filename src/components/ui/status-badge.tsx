@@ -5,6 +5,8 @@ const styles: Record<string, string> = {
   CANCELLED: "bg-slate-100 text-slate-400",
   ACTIVE: "bg-blue-100 text-blue-700",
   SETTLED: "bg-green-100 text-green-700",
+  TRANSFERRED: "bg-green-100 text-green-700",
+  RETURNED: "bg-amber-100 text-amber-700",
 };
 
 const labels: Record<string, string> = {
@@ -14,6 +16,8 @@ const labels: Record<string, string> = {
   CANCELLED: "Cancelado",
   ACTIVE: "Ativo",
   SETTLED: "Quitado",
+  TRANSFERRED: "Transferido",
+  RETURNED: "Devolvido",
 };
 
 export function StatusBadge({ status }: { status: string }) {

@@ -258,3 +258,91 @@ DO $$ BEGIN
     FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+-- ─── Aluguel com opção de compra (motos) ───────────────────────────────────
+DO $$ BEGIN
+  CREATE TYPE "RentalStatus" AS ENUM ('ACTIVE', 'TRANSFERRED', 'RETURNED', 'CANCELLED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "RentalPaymentFrequency" AS ENUM ('DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TYPE "TransactionOrigin" ADD VALUE IF NOT EXISTS 'RENTAL_PAYMENT';
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS "Rental" (
+  "id" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  "clientId" TEXT NOT NULL,
+  "vehicleDescription" TEXT NOT NULL,
+  "plate" TEXT,
+  "paymentFrequency" "RentalPaymentFrequency" NOT NULL,
+  "installmentCount" INTEGER NOT NULL,
+  "installmentValue" DECIMAL(12,2) NOT NULL,
+  "totalValue" DECIMAL(12,2) NOT NULL,
+  "startDate" DATE NOT NULL,
+  "paymentDay" INTEGER,
+  "paymentDay2" INTEGER,
+  "weekday" INTEGER,
+  "activeWeekdays" INTEGER[] NOT NULL DEFAULT ARRAY[]::INTEGER[],
+  "notes" TEXT,
+  "status" "RentalStatus" NOT NULL DEFAULT 'ACTIVE',
+  "transferredAt" TIMESTAMP(3),
+  "returnedAt" TIMESTAMP(3),
+  "deletedAt" TIMESTAMP(3),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  CONSTRAINT "Rental_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "RentalInstallment" (
+  "id" TEXT NOT NULL,
+  "rentalId" TEXT NOT NULL,
+  "number" INTEGER NOT NULL,
+  "value" DECIMAL(12,2) NOT NULL,
+  "dueDate" DATE NOT NULL,
+  "status" "InstallmentStatus" NOT NULL DEFAULT 'PENDING',
+  "paidAt" TIMESTAMP(3),
+  "notes" TEXT,
+  "deletedAt" TIMESTAMP(3),
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  CONSTRAINT "RentalInstallment_pkey" PRIMARY KEY ("id")
+);
+
+ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "rentalInstallmentId" TEXT;
+
+CREATE INDEX IF NOT EXISTS "Rental_userId_deletedAt_idx" ON "Rental"("userId", "deletedAt");
+CREATE INDEX IF NOT EXISTS "Rental_clientId_idx" ON "Rental"("clientId");
+CREATE INDEX IF NOT EXISTS "Rental_status_idx" ON "Rental"("status");
+CREATE INDEX IF NOT EXISTS "RentalInstallment_rentalId_idx" ON "RentalInstallment"("rentalId");
+CREATE INDEX IF NOT EXISTS "RentalInstallment_status_dueDate_idx" ON "RentalInstallment"("status", "dueDate");
+
+DO $$ BEGIN
+  ALTER TABLE "Rental" ADD CONSTRAINT "Rental_userId_fkey"
+    FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "Rental" ADD CONSTRAINT "Rental_clientId_fkey"
+    FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "RentalInstallment" ADD CONSTRAINT "RentalInstallment_rentalId_fkey"
+    FOREIGN KEY ("rentalId") REFERENCES "Rental"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_rentalInstallmentId_fkey"
+    FOREIGN KEY ("rentalInstallmentId") REFERENCES "RentalInstallment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
