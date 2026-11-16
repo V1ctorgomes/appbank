@@ -1,4 +1,5 @@
 import { addMonths } from "date-fns";
+import { WEEKDAY_OPTIONS } from "@/lib/loan-utils";
 
 export type InstallmentInput = {
   number: number;
@@ -6,23 +7,71 @@ export type InstallmentInput = {
   dueDate: string;
 };
 
+export type SaleInstallmentFrequency = "MONTHLY" | "WEEKLY";
+
 export function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function parseLocalDate(input: string): Date {
+  const [y, m, d] = input.slice(0, 10).split("-").map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0);
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function firstWeekdayOnOrAfter(start: Date, weekday: number): Date {
+  const result = new Date(start);
+  const delta = (weekday - result.getDay() + 7) % 7;
+  result.setDate(result.getDate() + delta);
+  return result;
+}
+
+function toDateInput(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export function generateAutoInstallments(
   total: number,
   count: number,
-  firstDueDate: string
+  firstDueDate: string,
+  opts?: {
+    frequency?: SaleInstallmentFrequency;
+    weekday?: number;
+  }
 ): InstallmentInput[] {
+  const frequency = opts?.frequency ?? "MONTHLY";
   const base = roundMoney(total / count);
   const installments: InstallmentInput[] = [];
   let sum = 0;
-  const start = new Date(firstDueDate + "T12:00:00");
+  const start = parseLocalDate(firstDueDate);
+
+  if (frequency === "WEEKLY") {
+    const weekday = opts?.weekday ?? start.getDay();
+    let cursor = firstWeekdayOnOrAfter(start, weekday);
+    for (let i = 0; i < count; i++) {
+      const value = i === count - 1 ? roundMoney(total - sum) : base;
+      sum = roundMoney(sum + value);
+      installments.push({
+        number: i + 1,
+        value,
+        dueDate: toDateInput(cursor),
+      });
+      cursor = addDays(cursor, 7);
+    }
+    return installments;
+  }
 
   for (let i = 0; i < count; i++) {
     const value = i === count - 1 ? roundMoney(total - sum) : base;
-    sum += value;
+    sum = roundMoney(sum + value);
     installments.push({
       number: i + 1,
       value,
@@ -32,6 +81,22 @@ export function generateAutoInstallments(
 
   return installments;
 }
+
+export function saleInstallmentFrequencyLabel(
+  frequency: SaleInstallmentFrequency
+): string {
+  return frequency === "WEEKLY" ? "Semanal" : "Mensal";
+}
+
+export function saleInstallmentCountLabel(
+  frequency: SaleInstallmentFrequency
+): string {
+  return frequency === "WEEKLY"
+    ? "Quantidade de semanas *"
+    : "Quantidade de parcelas *";
+}
+
+export { WEEKDAY_OPTIONS };
 
 export function validateInstallmentSum(
   installments: { value: number }[],

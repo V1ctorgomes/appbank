@@ -14,6 +14,9 @@ import {
   calcSaleTotalFromItems,
   generateAutoInstallments,
   roundMoney,
+  saleInstallmentCountLabel,
+  WEEKDAY_OPTIONS,
+  type SaleInstallmentFrequency,
 } from "@/lib/sale-utils";
 import type { CreateSaleInput, SaleItemInput } from "@/lib/schemas";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
@@ -48,8 +51,11 @@ export function SaleForm({ clients }: SaleFormProps) {
 
   const [paymentType, setPaymentType] = useState<PaymentType>("INSTALLMENT");
   const [installmentMode, setInstallmentMode] = useState<InstallmentMode>("AUTO");
+  const [installmentFrequency, setInstallmentFrequency] =
+    useState<SaleInstallmentFrequency>("MONTHLY");
   const [installmentCount, setInstallmentCount] = useState("3");
   const [firstDueDate, setFirstDueDate] = useState("");
+  const [weekday, setWeekday] = useState("1");
   const [manualInstallments, setManualInstallments] = useState<
     { value: string; dueDate: string }[]
   >([{ value: "", dueDate: "" }]);
@@ -76,7 +82,11 @@ export function SaleForm({ clients }: SaleFormProps) {
       return generateAutoInstallments(
         totalValue,
         parseInt(installmentCount),
-        firstDueDate
+        firstDueDate,
+        {
+          frequency: installmentFrequency,
+          weekday: parseInt(weekday, 10),
+        }
       );
     }
     if (installmentMode === "MANUAL") {
@@ -94,8 +104,10 @@ export function SaleForm({ clients }: SaleFormProps) {
     totalValue,
     saleDate,
     installmentMode,
+    installmentFrequency,
     installmentCount,
     firstDueDate,
+    weekday,
     manualInstallments,
   ]);
 
@@ -154,6 +166,10 @@ export function SaleForm({ clients }: SaleFormProps) {
           : undefined,
       paymentType,
       installmentMode: paymentType === "INSTALLMENT" ? installmentMode : undefined,
+      installmentFrequency:
+        paymentType === "INSTALLMENT" && installmentMode === "AUTO"
+          ? installmentFrequency
+          : undefined,
       installmentCount:
         paymentType === "INSTALLMENT" && installmentMode === "AUTO"
           ? parseInt(installmentCount)
@@ -161,6 +177,12 @@ export function SaleForm({ clients }: SaleFormProps) {
       firstDueDate:
         paymentType === "INSTALLMENT" && installmentMode === "AUTO"
           ? firstDueDate
+          : undefined,
+      weekday:
+        paymentType === "INSTALLMENT" &&
+        installmentMode === "AUTO" &&
+        installmentFrequency === "WEEKLY"
+          ? parseInt(weekday, 10)
           : undefined,
       installments:
         paymentType === "INSTALLMENT" && installmentMode === "MANUAL"
@@ -398,23 +420,56 @@ export function SaleForm({ clients }: SaleFormProps) {
               </div>
 
               {installmentMode === "AUTO" ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Input
-                    label="Quantidade de Parcelas *"
-                    type="number"
-                    min="1"
-                    max="120"
-                    value={installmentCount}
-                    onChange={(e) => setInstallmentCount(e.target.value)}
+                <div className="space-y-4">
+                  <Select
+                    label="Frequência das parcelas *"
+                    value={installmentFrequency}
+                    onChange={(e) => {
+                      const next = e.target.value as SaleInstallmentFrequency;
+                      setInstallmentFrequency(next);
+                      if (next === "WEEKLY" && (!installmentCount || installmentCount === "3")) {
+                        setInstallmentCount("4");
+                      }
+                      if (next === "MONTHLY" && installmentCount === "4") {
+                        setInstallmentCount("3");
+                      }
+                    }}
+                    options={[
+                      { value: "MONTHLY", label: "Mensal" },
+                      { value: "WEEKLY", label: "Semanal" },
+                    ]}
                     required
                   />
-                  <Input
-                    label="Primeiro Vencimento *"
-                    type="date"
-                    value={firstDueDate}
-                    onChange={(e) => setFirstDueDate(e.target.value)}
-                    required
-                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      label={saleInstallmentCountLabel(installmentFrequency)}
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={installmentCount}
+                      onChange={(e) => setInstallmentCount(e.target.value)}
+                      required
+                    />
+                    <Input
+                      label="Dia do primeiro pagamento *"
+                      type="date"
+                      value={firstDueDate}
+                      onChange={(e) => setFirstDueDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  {installmentFrequency === "WEEKLY" && (
+                    <Select
+                      label="Dia da semana que se mantém *"
+                      value={weekday}
+                      onChange={(e) => setWeekday(e.target.value)}
+                      options={WEEKDAY_OPTIONS.map((o) => ({
+                        value: o.value,
+                        label: o.label,
+                      }))}
+                      required
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">

@@ -141,7 +141,11 @@ function resolveInstallments(input: CreateSaleInput, totalValue: number) {
     return generateAutoInstallments(
       totalValue,
       input.installmentCount!,
-      input.firstDueDate!
+      input.firstDueDate!,
+      {
+        frequency: input.installmentFrequency ?? "MONTHLY",
+        weekday: input.weekday,
+      }
     );
   }
 
@@ -256,7 +260,11 @@ function resolveInstallmentsForUpdate(
     return generateAutoInstallments(
       totalValue,
       data.installmentCount!,
-      data.firstDueDate!
+      data.firstDueDate!,
+      {
+        frequency: data.installmentFrequency ?? "MONTHLY",
+        weekday: data.weekday,
+      }
     );
   }
   return (data.installments ?? []).map((inst, index) => ({

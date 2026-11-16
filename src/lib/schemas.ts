@@ -68,8 +68,10 @@ export const createSaleSchema = z
     items: z.array(saleItemSchema).optional(),
     paymentType: z.enum(["CASH", "INSTALLMENT"]),
     installmentMode: z.enum(["AUTO", "MANUAL"]).optional(),
+    installmentFrequency: z.enum(["MONTHLY", "WEEKLY"]).optional(),
     installmentCount: z.coerce.number().int().positive().optional(),
     firstDueDate: z.string().optional(),
+    weekday: z.coerce.number().int().min(0).max(6).optional(),
     installments: z.array(installmentSchema).optional(),
   })
   .superRefine((data, ctx) => {
@@ -116,6 +118,13 @@ export const createSaleSchema = z
             path: ["firstDueDate"],
           });
         }
+        if (data.installmentFrequency === "WEEKLY" && data.weekday == null) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Escolha o dia da semana do pagamento",
+            path: ["weekday"],
+          });
+        }
       }
       if (data.installmentMode === "MANUAL") {
         if (!data.installments?.length) {
@@ -147,8 +156,10 @@ export const updateSaleSchema = z
     items: z.array(saleItemSchema).optional(),
     paymentType: z.enum(["CASH", "INSTALLMENT"]).optional(),
     installmentMode: z.enum(["AUTO", "MANUAL"]).optional(),
+    installmentFrequency: z.enum(["MONTHLY", "WEEKLY"]).optional(),
     installmentCount: z.coerce.number().int().positive().optional(),
     firstDueDate: z.string().optional(),
+    weekday: z.coerce.number().int().min(0).max(6).optional(),
     installments: z.array(updateInstallmentSchema).optional(),
   })
   .superRefine((data, ctx) => {
@@ -165,6 +176,13 @@ export const updateSaleSchema = z
           code: z.ZodIssueCode.custom,
           message: "Informe o primeiro vencimento",
           path: ["firstDueDate"],
+        });
+      }
+      if (data.installmentFrequency === "WEEKLY" && data.weekday == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Escolha o dia da semana do pagamento",
+          path: ["weekday"],
         });
       }
     }
