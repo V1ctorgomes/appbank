@@ -150,26 +150,12 @@ export function generateRentalInstallments(input: {
       cursor = addDays(cursor, 7);
     }
   } else if (input.frequency === "BIWEEKLY") {
-    const d1 = input.paymentDay ?? 1;
-    const d2 = input.paymentDay2 ?? 16;
-    const days = [d1, d2].sort((a, b) => a - b);
-    let year = start.getFullYear();
-    let month = start.getMonth();
-    let safety = 0;
-    while (dueDates.length < count && safety < count + 24) {
-      for (const day of days) {
-        const due = dueDateInMonth(year, month, day);
-        if (due >= start) {
-          dueDates.push(due);
-          if (dueDates.length >= count) break;
-        }
-      }
-      month += 1;
-      if (month > 11) {
-        month = 0;
-        year += 1;
-      }
-      safety += 1;
+    // Quinzena = a cada 14 dias no dia da semana escolhido (mesmo padrão da semanal).
+    const weekday = input.weekday ?? 1;
+    let cursor = firstWeekdayOnOrAfter(start, weekday);
+    for (let i = 0; i < count; i++) {
+      dueDates.push(new Date(cursor));
+      cursor = addDays(cursor, 14);
     }
   } else {
     const paymentDay = input.paymentDay ?? start.getDate();
@@ -241,7 +227,9 @@ export function formatRentalSchedule(input: {
     return `${count}× diária (${formatActiveWeekdays(input.activeWeekdays)}) a partir de ${startLabel}`;
   }
   if (input.paymentFrequency === "BIWEEKLY") {
-    return `${count}× quinzenal (dias ${input.paymentDay} e ${input.paymentDay2}) a partir de ${startLabel}`;
+    const day =
+      input.weekday != null ? weekdayLabel(input.weekday) : "dia escolhido";
+    return `${count}× quinzenal (${day}, a cada 14 dias) a partir de ${startLabel}`;
   }
   return `${count}× mensal (dia ${input.paymentDay ?? "—"}) a partir de ${startLabel} · ${freq}`;
 }

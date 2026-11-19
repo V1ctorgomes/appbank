@@ -46,7 +46,6 @@ export function RentalForm({
   );
   const [weekday, setWeekday] = useState("1");
   const [paymentDay, setPaymentDay] = useState(String(new Date().getDate()));
-  const [paymentDay2, setPaymentDay2] = useState("16");
   const [activeWeekdays, setActiveWeekdays] = useState<number[]>([
     ...DEFAULT_DAILY_WEEKDAYS,
   ]);
@@ -56,7 +55,6 @@ export function RentalForm({
   const valueNum = parseFloat(installmentValue) || 0;
   const weekdayNum = parseInt(weekday, 10);
   const paymentDayNum = parseInt(paymentDay, 10) || 1;
-  const paymentDay2Num = parseInt(paymentDay2, 10) || 16;
   const total = roundMoney(valueNum * Math.max(countNum, 0));
 
   const preview = useMemo(() => {
@@ -76,7 +74,6 @@ export function RentalForm({
         startDate,
         weekday: weekdayNum,
         paymentDay: paymentDayNum,
-        paymentDay2: paymentDay2Num,
         activeWeekdays:
           paymentFrequency === "DAILY" ? activeWeekdays : undefined,
       });
@@ -90,7 +87,6 @@ export function RentalForm({
     startDate,
     weekdayNum,
     paymentDayNum,
-    paymentDay2Num,
     activeWeekdays,
   ]);
 
@@ -112,12 +108,11 @@ export function RentalForm({
       installmentCount: countNum,
       installmentValue: valueNum,
       startDate,
-      paymentDay:
-        paymentFrequency === "MONTHLY" || paymentFrequency === "BIWEEKLY"
-          ? paymentDayNum
+      paymentDay: paymentFrequency === "MONTHLY" ? paymentDayNum : undefined,
+      weekday:
+        paymentFrequency === "WEEKLY" || paymentFrequency === "BIWEEKLY"
+          ? weekdayNum
           : undefined,
-      paymentDay2: paymentFrequency === "BIWEEKLY" ? paymentDay2Num : undefined,
-      weekday: paymentFrequency === "WEEKLY" ? weekdayNum : undefined,
       activeWeekdays:
         paymentFrequency === "DAILY" ? activeWeekdays : undefined,
       notes: notes || undefined,
@@ -181,8 +176,8 @@ export function RentalForm({
                 handleFrequencyChange(e.target.value as RentalPaymentFrequency)
               }
               options={[
-                { value: "WEEKLY", label: "Semanal" },
                 { value: "DAILY", label: "Diária" },
+                { value: "WEEKLY", label: "Semanal" },
                 { value: "BIWEEKLY", label: "Quinzenal" },
                 { value: "MONTHLY", label: "Mensal" },
               ]}
@@ -218,9 +213,14 @@ export function RentalForm({
               required
             />
 
-            {paymentFrequency === "WEEKLY" && (
+            {(paymentFrequency === "WEEKLY" ||
+              paymentFrequency === "BIWEEKLY") && (
               <Select
-                label="Dia da semana do pagamento *"
+                label={
+                  paymentFrequency === "BIWEEKLY"
+                    ? "Dia da semana (a cada 14 dias) *"
+                    : "Dia da semana do pagamento *"
+                }
                 value={weekday}
                 onChange={(e) => setWeekday(e.target.value)}
                 options={WEEKDAY_OPTIONS.map((o) => ({
@@ -248,29 +248,6 @@ export function RentalForm({
                 onChange={(e) => setPaymentDay(e.target.value)}
                 required
               />
-            )}
-
-            {paymentFrequency === "BIWEEKLY" && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Input
-                  label="1º dia do mês *"
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={paymentDay}
-                  onChange={(e) => setPaymentDay(e.target.value)}
-                  required
-                />
-                <Input
-                  label="2º dia do mês *"
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={paymentDay2}
-                  onChange={(e) => setPaymentDay2(e.target.value)}
-                  required
-                />
-              </div>
             )}
 
             <div className="space-y-1">

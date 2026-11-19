@@ -422,7 +422,11 @@ export const createRentalSchema = z
     notes: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.paymentFrequency === "WEEKLY" && data.weekday == null) {
+    if (
+      (data.paymentFrequency === "WEEKLY" ||
+        data.paymentFrequency === "BIWEEKLY") &&
+      data.weekday == null
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Escolha o dia da semana",
@@ -444,33 +448,6 @@ export const createRentalSchema = z
         message: "Informe o dia do pagamento",
         path: ["paymentDay"],
       });
-    }
-    if (data.paymentFrequency === "BIWEEKLY") {
-      if (data.paymentDay == null) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Informe o primeiro dia",
-          path: ["paymentDay"],
-        });
-      }
-      if (data.paymentDay2 == null) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Informe o segundo dia",
-          path: ["paymentDay2"],
-        });
-      }
-      if (
-        data.paymentDay != null &&
-        data.paymentDay2 != null &&
-        data.paymentDay === data.paymentDay2
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Os dois dias devem ser diferentes",
-          path: ["paymentDay2"],
-        });
-      }
     }
   });
 
