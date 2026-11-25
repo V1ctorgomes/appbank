@@ -203,6 +203,7 @@ export async function createSale(input: CreateSaleInput) {
       saleDate: new Date(data.saleDate + "T12:00:00"),
       notes: data.notes || null,
       totalValue,
+      costValue: data.costValue != null ? roundMoney(data.costValue) : null,
       items:
         data.type === "ITEMS"
           ? {
@@ -342,6 +343,7 @@ export async function updateSale(saleId: string, input: UpdateSaleInput) {
         clientId: data.clientId,
         saleDate,
         notes: data.notes || null,
+        costValue: data.costValue != null ? roundMoney(data.costValue) : null,
       },
     });
 
@@ -383,6 +385,7 @@ export async function updateSale(saleId: string, input: UpdateSaleInput) {
             notes: data.notes || null,
             description: saleType === "DIRECT_VALUE" ? data.description : null,
             totalValue,
+            costValue: data.costValue != null ? roundMoney(data.costValue) : null,
           },
         });
 
@@ -453,6 +456,7 @@ export async function updateSale(saleId: string, input: UpdateSaleInput) {
             notes: data.notes || null,
             description: saleType === "DIRECT_VALUE" ? data.description : null,
             totalValue,
+            costValue: data.costValue != null ? roundMoney(data.costValue) : null,
           },
         });
 

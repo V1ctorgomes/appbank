@@ -43,6 +43,7 @@ interface EditSaleFormProps {
     saleDate: Date;
     notes: string | null;
     totalValue: unknown;
+    costValue: unknown;
     clientId: string;
     items: {
       id: string;
@@ -83,6 +84,16 @@ function detectPaymentType(
   return "INSTALLMENT";
 }
 
+function costHint(total: number, cost: string) {
+  const value = parseFloat(cost);
+  if (!cost.trim() || Number.isNaN(value)) {
+    return "Usado no planejamento para separar lucro de reposição.";
+  }
+  if (total <= 0) return "";
+  const margin = ((total - value) / total) * 100;
+  return `Margem de ${margin.toFixed(0)}% sobre a venda.`;
+}
+
 export function EditSaleForm({ sale, clients }: EditSaleFormProps) {
   const router = useRouter();
   const saleType = sale.type;
@@ -103,6 +114,9 @@ export function EditSaleForm({ sale, clients }: EditSaleFormProps) {
   const [clientId, setClientId] = useState(sale.clientId);
   const [saleDate, setSaleDate] = useState(toDateInput(sale.saleDate));
   const [notes, setNotes] = useState(sale.notes ?? "");
+  const [costValue, setCostValue] = useState(
+    sale.costValue != null ? String(Number(sale.costValue)) : ""
+  );
   const [description, setDescription] = useState(sale.description ?? "");
   const [directValue, setDirectValue] = useState(String(Number(sale.totalValue)));
   const [items, setItems] = useState<SaleItemInput[]>(
@@ -239,6 +253,7 @@ export function EditSaleForm({ sale, clients }: EditSaleFormProps) {
         clientId,
         saleDate,
         notes: notes || undefined,
+        costValue: costValue.trim() ? parseFloat(costValue) : undefined,
       };
 
       if (!allPaid) {
@@ -688,6 +703,22 @@ export function EditSaleForm({ sale, clients }: EditSaleFormProps) {
         )}
 
         <Card>
+          <div className="mb-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <Input
+                label="Custo da mercadoria"
+                type="number"
+                step="0.01"
+                min="0"
+                value={costValue}
+                onChange={(e) => setCostValue(e.target.value)}
+                placeholder="Opcional"
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                {costHint(totalValue, costValue)}
+              </p>
+            </div>
+          </div>
           <Input
             label="Observação"
             value={notes}

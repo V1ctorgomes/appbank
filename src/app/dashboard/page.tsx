@@ -9,6 +9,8 @@ import {
   getDashboardSaleData,
   type DashboardCalendarDay,
 } from "@/actions/dashboard";
+import { getPlanningData, type PlanningData } from "@/actions/planning";
+import { PlanningCard } from "@/components/dashboard/planning-card";
 import { GoalsWidget } from "@/components/dashboard/goals-widget";
 import { RoutineWidget } from "@/components/dashboard/routine-widget";
 import { DashboardReceiptCalendar } from "@/components/dashboard/receipt-calendar";
@@ -107,6 +109,14 @@ export default async function DashboardPage({
     month: calendarDateKey().slice(0, 7),
     days: [] as DashboardCalendarDay[],
   };
+
+  let planning: PlanningData | null = null;
+
+  try {
+    planning = await getPlanningData();
+  } catch (err) {
+    console.error("Erro ao carregar planejamento do mês:", err);
+  }
 
   try {
     if (view === "emprestimos") {
@@ -267,6 +277,19 @@ export default async function DashboardPage({
             subtitle="Recebido − liberado"
           />
         </div>
+      )}
+
+      {planning && (
+        <PlanningCard
+          data={planning}
+          only={
+            view === "emprestimos"
+              ? ["loans"]
+              : view === "vendas"
+                ? ["sales"]
+                : undefined
+          }
+        />
       )}
 
       <DashboardReceiptCalendar

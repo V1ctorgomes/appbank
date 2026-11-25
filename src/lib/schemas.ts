@@ -65,6 +65,7 @@ export const createSaleSchema = z
     notes: z.string().optional(),
     description: z.string().optional(),
     directValue: z.coerce.number().optional(),
+    costValue: z.coerce.number().min(0, "Custo não pode ser negativo").optional(),
     items: z.array(saleItemSchema).optional(),
     paymentType: z.enum(["CASH", "INSTALLMENT"]),
     installmentMode: z.enum(["AUTO", "MANUAL"]).optional(),
@@ -153,6 +154,7 @@ export const updateSaleSchema = z
     notes: z.string().optional(),
     description: z.string().optional(),
     directValue: z.coerce.number().optional(),
+    costValue: z.coerce.number().min(0, "Custo não pode ser negativo").optional(),
     items: z.array(saleItemSchema).optional(),
     paymentType: z.enum(["CASH", "INSTALLMENT"]).optional(),
     installmentMode: z.enum(["AUTO", "MANUAL"]).optional(),
@@ -419,6 +421,7 @@ export const createRentalSchema = z
     paymentDay2: z.coerce.number().int().min(1).max(31).optional(),
     weekday: z.coerce.number().int().min(0).max(6).optional(),
     activeWeekdays: z.array(z.coerce.number().int().min(0).max(6)).optional(),
+    vehicleCost: z.coerce.number().min(0, "Custo não pode ser negativo").optional(),
     notes: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -452,6 +455,13 @@ export const createRentalSchema = z
   });
 
 export type CreateRentalInput = z.infer<typeof createRentalSchema>;
+
+export const rentalCostSchema = z.object({
+  rentalId: z.string().min(1),
+  vehicleCost: z.coerce.number().min(0, "Custo não pode ser negativo").nullable(),
+});
+
+export type RentalCostInput = z.infer<typeof rentalCostSchema>;
 
 export const rentalInstallmentPaymentSchema = z.object({
   rentalInstallmentId: z.string().min(1),

@@ -5,8 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-utils";
 import {
   createRentalSchema,
+  rentalCostSchema,
   rentalInstallmentPaymentSchema,
   type CreateRentalInput,
+  type RentalCostInput,
   type RentalInstallmentPaymentInput,
 } from "@/lib/schemas";
 import {
@@ -196,6 +198,8 @@ export async function createRental(input: CreateRentalInput) {
       installmentCount,
       installmentValue,
       totalValue,
+      vehicleCost:
+        data.vehicleCost != null ? roundMoney(data.vehicleCost) : null,
       startDate: new Date(data.startDate + "T12:00:00"),
       paymentDay: data.paymentDay ?? null,
       paymentDay2: data.paymentDay2 ?? null,
@@ -298,6 +302,33 @@ export async function registerRentalInstallmentPayment(
   });
 
   revalidateRentalPaths(installment.rentalId, installment.rental.clientId);
+  return { success: true };
+}
+
+export async function updateRentalCost(input: RentalCostInput) {
+  const user = await requireAuth();
+  const parsed = rentalCostSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message ?? "Dados inválidos" };
+  }
+
+  const rental = await prisma.rental.findFirst({
+    where: { id: parsed.data.rentalId, userId: user.id, deletedAt: null },
+    select: { id: true, clientId: true },
+  });
+  if (!rental) return { error: "Aluguel não encontrado" };
+
+  await prisma.rental.update({
+    where: { id: rental.id },
+    data: {
+      vehicleCost:
+        parsed.data.vehicleCost != null
+          ? roundMoney(parsed.data.vehicleCost)
+          : null,
+    },
+  });
+
+  revalidateRentalPaths(rental.id, rental.clientId);
   return { success: true };
 }
 

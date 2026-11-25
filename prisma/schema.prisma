@@ -103,6 +103,8 @@ model Sale {
   saleDate    DateTime  @db.Date
   notes       String?
   totalValue  Decimal   @db.Decimal(12, 2)
+  /// Custo da mercadoria (para separar lucro de reposição no planejamento)
+  costValue   Decimal?  @db.Decimal(12, 2)
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -445,6 +447,8 @@ model Rental {
   installmentCount   Int
   installmentValue   Decimal                 @db.Decimal(12, 2)
   totalValue         Decimal                 @db.Decimal(12, 2)
+  /// Quanto a moto custou (para separar lucro de reposição no planejamento)
+  vehicleCost        Decimal?                @db.Decimal(12, 2)
   startDate          DateTime                @db.Date
   paymentDay         Int?
   paymentDay2        Int?

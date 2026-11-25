@@ -36,6 +36,16 @@ const emptyItem = (): SaleItemInput => ({
   unitPrice: 0,
 });
 
+function costHint(total: number, cost: string) {
+  const value = parseFloat(cost);
+  if (!cost.trim() || Number.isNaN(value)) {
+    return "Usado no planejamento para separar lucro de reposição.";
+  }
+  if (total <= 0) return "";
+  const margin = ((total - value) / total) * 100;
+  return `Margem de ${margin.toFixed(0)}% sobre a venda.`;
+}
+
 export function SaleForm({ clients }: SaleFormProps) {
   const router = useRouter();
   const [error, setError] = useState("");
@@ -44,6 +54,7 @@ export function SaleForm({ clients }: SaleFormProps) {
   const [clientId, setClientId] = useState("");
   const [saleDate, setSaleDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [costValue, setCostValue] = useState("");
   const [saleType, setSaleType] = useState<SaleType>("ITEMS");
   const [description, setDescription] = useState("");
   const [directValue, setDirectValue] = useState("");
@@ -154,6 +165,7 @@ export function SaleForm({ clients }: SaleFormProps) {
       type: saleType,
       saleDate,
       notes: notes || undefined,
+      costValue: costValue.trim() ? parseFloat(costValue) : undefined,
       description: saleType === "DIRECT_VALUE" ? description : undefined,
       directValue: saleType === "DIRECT_VALUE" ? parseFloat(directValue) : undefined,
       items:
@@ -585,6 +597,22 @@ export function SaleForm({ clients }: SaleFormProps) {
         </Card>
 
         <Card>
+          <div className="mb-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <Input
+                label="Custo da mercadoria"
+                type="number"
+                step="0.01"
+                min="0"
+                value={costValue}
+                onChange={(e) => setCostValue(e.target.value)}
+                placeholder="Opcional"
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                {costHint(totalValue, costValue)}
+              </p>
+            </div>
+          </div>
           <Input
             label="Observação"
             value={notes}

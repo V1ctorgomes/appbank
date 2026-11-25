@@ -346,3 +346,18 @@ DO $$ BEGIN
     FOREIGN KEY ("rentalInstallmentId") REFERENCES "RentalInstallment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+-- Custo da mercadoria nas vendas. Na primeira vez que a coluna é criada,
+-- as vendas já existentes recebem custo estimado de 40% do valor vendido.
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'Sale' AND column_name = 'costValue'
+  ) THEN
+    ALTER TABLE "Sale" ADD COLUMN "costValue" DECIMAL(12,2);
+    UPDATE "Sale" SET "costValue" = ROUND("totalValue" * 0.40, 2);
+  END IF;
+END $$;
+
+-- Custo da moto nos aluguéis (preenchido manualmente).
+ALTER TABLE "Rental" ADD COLUMN IF NOT EXISTS "vehicleCost" DECIMAL(12,2);

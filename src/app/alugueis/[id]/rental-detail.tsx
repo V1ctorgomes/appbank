@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { RentalInstallmentPaymentButton } from "@/components/rentals/rental-payment-modal";
+import { RentalCostEditor } from "@/components/rentals/rental-cost-editor";
 import { deleteRental, markRentalReturned } from "@/actions/rentals";
 import {
   formatRentalSchedule,
@@ -26,6 +27,7 @@ type RentalDetailProps = {
     installmentCount: number;
     installmentValue: unknown;
     totalValue: unknown;
+    vehicleCost: unknown;
     startDate: Date;
     paymentDay: number | null;
     paymentDay2: number | null;
@@ -251,6 +253,15 @@ export function RentalDetail({ rental }: RentalDetailProps) {
             <div className="flex justify-between">
               <span className="text-slate-500">Telefone</span>
               <span className="font-medium">{rental.client.phone}</span>
+            </div>
+            <div className="border-t border-slate-100 pt-3">
+              <RentalCostEditor
+                rentalId={rental.id}
+                vehicleCost={
+                  rental.vehicleCost != null ? Number(rental.vehicleCost) : null
+                }
+                totalValue={Number(rental.totalValue)}
+              />
             </div>
           </div>
         </Card>

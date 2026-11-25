@@ -50,6 +50,7 @@ export function RentalForm({
     ...DEFAULT_DAILY_WEEKDAYS,
   ]);
   const [notes, setNotes] = useState("");
+  const [vehicleCost, setVehicleCost] = useState("");
 
   const countNum = parseInt(installmentCount, 10) || 0;
   const valueNum = parseFloat(installmentValue) || 0;
@@ -116,6 +117,7 @@ export function RentalForm({
       activeWeekdays:
         paymentFrequency === "DAILY" ? activeWeekdays : undefined,
       notes: notes || undefined,
+      vehicleCost: vehicleCost.trim() ? parseFloat(vehicleCost) : undefined,
     });
 
     if (result?.error) {
@@ -169,6 +171,20 @@ export function RentalForm({
               onChange={(e) => setPlate(e.target.value.toUpperCase())}
               placeholder="ABC1D23"
             />
+            <div>
+              <Input
+                label="Custo da moto (R$)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={vehicleCost}
+                onChange={(e) => setVehicleCost(e.target.value)}
+                placeholder="Quanto você pagou na moto"
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Opcional. Usado no planejamento para separar lucro de reposição da moto.
+              </p>
+            </div>
             <Select
               label="Forma de pagamento *"
               value={paymentFrequency}
