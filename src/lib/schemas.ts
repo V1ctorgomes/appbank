@@ -456,6 +456,16 @@ export const createRentalSchema = z
 
 export type CreateRentalInput = z.infer<typeof createRentalSchema>;
 
+export const updateRentalSchema = z.object({
+  clientId: z.string().min(1, "Cliente é obrigatório"),
+  vehicleDescription: z.string().trim().min(1, "Descreva a moto/veículo"),
+  plate: z.string().optional(),
+  vehicleCost: z.coerce.number().min(0, "Custo não pode ser negativo").optional(),
+  notes: z.string().optional(),
+});
+
+export type UpdateRentalInput = z.infer<typeof updateRentalSchema>;
+
 export const rentalCostSchema = z.object({
   rentalId: z.string().min(1),
   vehicleCost: z.coerce.number().min(0, "Custo não pode ser negativo").nullable(),

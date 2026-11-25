@@ -16,7 +16,7 @@ import {
   rentalStatusLabel,
 } from "@/lib/rental-utils";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ArrowLeft, Bike, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, Bike, Pencil, Trash2, Undo2 } from "lucide-react";
 
 type RentalDetailProps = {
   rental: {
@@ -121,6 +121,12 @@ export function RentalDetail({ rental }: RentalDetailProps) {
         </div>
         <div className="flex flex-wrap gap-2">
           <StatusBadge status={rental.status} />
+          <Link href={`/alugueis/${rental.id}/editar`}>
+            <Button variant="secondary" size="sm">
+              <Pencil className="mr-1 h-4 w-4" />
+              Editar
+            </Button>
+          </Link>
           {isActive && (
             <Button
               variant="secondary"

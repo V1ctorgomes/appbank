@@ -14,7 +14,7 @@ import {
 } from "@/lib/rental-utils";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Eye, Plus } from "lucide-react";
+import { Eye, Pencil, Plus } from "lucide-react";
 
 interface PageProps {
   searchParams: Promise<{ page?: string; search?: string; status?: string }>;
@@ -118,6 +118,15 @@ export default async function AlugueisPage({ searchParams }: PageProps) {
                       <div className="text-xs text-slate-400">
                         Total {formatCurrency(Number(rental.totalValue))}
                       </div>
+                      {rental.vehicleCost == null ? (
+                        <div className="text-xs font-medium text-amber-600">
+                          Custo da moto não informado
+                        </div>
+                      ) : (
+                        <div className="text-xs text-slate-400">
+                          Custo {formatCurrency(Number(rental.vehicleCost))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-800">
                       {formatCurrency(rental.openValue)}
@@ -126,12 +135,20 @@ export default async function AlugueisPage({ searchParams }: PageProps) {
                       <StatusBadge status={rental.status} />
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`/alugueis/${rental.id}`}>
-                        <Button variant="ghost" size="sm">
-                          <Eye className="mr-1 h-4 w-4" />
-                          Ver
-                        </Button>
-                      </Link>
+                      <div className="flex gap-1">
+                        <Link href={`/alugueis/${rental.id}`}>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="mr-1 h-4 w-4" />
+                            Ver
+                          </Button>
+                        </Link>
+                        <Link href={`/alugueis/${rental.id}/editar`}>
+                          <Button variant="ghost" size="sm">
+                            <Pencil className="mr-1 h-4 w-4" />
+                            Editar
+                          </Button>
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

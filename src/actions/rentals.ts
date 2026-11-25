@@ -7,8 +7,10 @@ import {
   createRentalSchema,
   rentalCostSchema,
   rentalInstallmentPaymentSchema,
+  updateRentalSchema,
   type CreateRentalInput,
   type RentalCostInput,
+  type UpdateRentalInput,
   type RentalInstallmentPaymentInput,
 } from "@/lib/schemas";
 import {
@@ -89,6 +91,7 @@ export async function getRentals(
       activeWeekdays: true,
       status: true,
       notes: true,
+      vehicleCost: true,
       client: { select: { id: true, name: true } },
       installments: {
         where: { deletedAt: null },
@@ -302,6 +305,46 @@ export async function registerRentalInstallmentPayment(
   });
 
   revalidateRentalPaths(installment.rentalId, installment.rental.clientId);
+  return { success: true };
+}
+
+export async function updateRental(id: string, input: UpdateRentalInput) {
+  const user = await requireAuth();
+  const parsed = updateRentalSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message ?? "Dados inválidos" };
+  }
+  const data = parsed.data;
+
+  const rental = await prisma.rental.findFirst({
+    where: { id, userId: user.id, deletedAt: null },
+    select: { id: true, clientId: true },
+  });
+  if (!rental) return { error: "Aluguel não encontrado" };
+
+  if (data.clientId !== rental.clientId) {
+    const client = await prisma.client.findFirst({
+      where: { id: data.clientId, userId: user.id, deletedAt: null },
+    });
+    if (!client) return { error: "Cliente não encontrado" };
+  }
+
+  await prisma.rental.update({
+    where: { id },
+    data: {
+      clientId: data.clientId,
+      vehicleDescription: data.vehicleDescription,
+      plate: data.plate?.trim() || null,
+      vehicleCost:
+        data.vehicleCost != null ? roundMoney(data.vehicleCost) : null,
+      notes: data.notes?.trim() || null,
+    },
+  });
+
+  revalidateRentalPaths(id, data.clientId);
+  if (data.clientId !== rental.clientId) {
+    revalidatePath(`/clientes/${rental.clientId}`);
+  }
   return { success: true };
 }
 
